@@ -45,3 +45,8 @@ optional arguments:
 # Project overview
 
 See proposal_README.pdf
+
+# Main reference paper
+
+https://arxiv.org/abs/1805.07470
+
