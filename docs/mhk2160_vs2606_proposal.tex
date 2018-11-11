@@ -124,9 +124,16 @@ While the results using this method has good results in the original paper, an a
 %-------------------------------------------------------------------------
 
 %------------------------------------------------------------------------
-\section{Evaluation Criteria}
+\section{Preliminary Results}
+Most of the time spent thus far was developing a code base where we can replicate the results of the original paper. A full code base was developed where a user can train the network and change a few of the hyper parameters via a command line interface. In the README.md in our github page, one can see how to easily change their training and tree search algorithms. 
 
-To be successful, the algorithm must get the rubik’s cube to the solved final state. However, this is not simply a constraint satisfaction problem. In addition, it must try to do so in as little moves as possible to reach an end goal. God’s number is referred to as the maximum number of moves that one can solve a rubik’s cube in, which is 20. Ideally, a learning agent would be able to solve this in 20 steps, but we will aim for as little moves as possible. The paper notes 30 moves as the median, so we will attempt to push this number as low as possible with a feasible search space ($<< 4.3 * 10^{19}$).  Additionally as the scramble distance increases from the goal state, the time to solve, average number of steps, and failure to find a solution all increased.  The paper was able to solve 100\% of cubes scrambled 15 moves.  We would also attempt to meet that success rate. 
+Initially the model was trained for 100,000 iterations, where in each iteration, the initial state $S$ traversed 30 times. A loss function was monitored to determine how the training was doing over time. These results were a bit less than promising. In figure 1, the loss function can be seen. It seems to converge fairly quickly, but to a high value.
+
+Why I believe this is happening is due to the additional weight parameter for the value function. In the original paper, it was noted that to keep from diverging, a weight was assigned to the value of the state, relating how far from the initial state the cube was. But, on each update of the value network, the value actually changes. By recursively assigning a weight to this new value function each time based on this weighting, it makes it very difficult for the function to converge as the value will continue to decay. One way we may handle this in the future is to use two neural networks, where one keeps track of the values unweighted and one weighted. 
+
+One thing to note was the computational power used to train in the original paper was much more than we have available. The paper notes that using 3 GPUs they had trained for 44 hours. To do this, we had a single GPU available. The model was trained for 24 hours, but the results we had gotten were not nearly as feasible as those gotten from the paper yet. For example, using our method, we were able to solve a rubik's cube 8 steps away from the original space, but it took nearly an hour to do so. Our Monte Carlo tree search is not yet asynchronous and runs serially, so building an asynchronous tree search and longer neural networking training time may help this.
+
+The code may need to be updated a bit more as training progresses to help speed up the process. Batch sizes were taken into consideration in training this. However, since only a single neural network is used, it makes sense to update the weights one by one, as the value of the next child depends on the previous neural network update.
 
 %-------------------------------------------------------------------------
 
