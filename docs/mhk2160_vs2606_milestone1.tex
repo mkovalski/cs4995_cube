@@ -6,6 +6,8 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{graphicx}
+
 
 % Include other packages here, before hyperref.
 
@@ -113,6 +115,14 @@ When a leaf node is reached, all children are expanded and initialized, so that 
 
 The simulation is completed once a solves state is reached, or a maximum number of iterations are taken.
 
+\subsection{Architecture and Design}
+We used a feed forward neural network as the architecture.  The network takes in a 20x24 matrix representing the current state of the rubik's cube.  There are then two dense layers, the result of which splits apart to the derive the two outputs: 1 dimensional scalar v, representing the reward value, and a 12 dimensional vector p, representing the probability of selecting each of the possible moves for the next state.  These outputs direct the execution of the Autodidactic Iteration and Monte Carlo Tree Search.
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{net.png}
+  \caption{Neural network.}
+  \label{fig:net}
+\end{figure}
 
 \subsection{Innovation}
 The initial method uses a non-heuristic based approach to try and solve the rubik's cube. By doing this, human based heuristics are removed and the neural network thus approximates these heuristics for us. 
@@ -134,6 +144,15 @@ Why I believe this is happening is due to the additional weight parameter for th
 One thing to note was the computational power used to train in the original paper was much more than we have available. The paper notes that using 3 GPUs they had trained for 44 hours. To do this, we had a single GPU available. The model was trained for 24 hours, but the results we had gotten were not nearly as feasible as those gotten from the paper yet. For example, using our method, we were able to solve a rubik's cube 8 steps away from the original space, but it took nearly an hour to do so. Our Monte Carlo tree search is not yet asynchronous and runs serially, so building an asynchronous tree search and longer neural networking training time may help this.
 
 The code may need to be updated a bit more as training progresses to help speed up the process. Batch sizes were taken into consideration in training this. However, since only a single neural network is used, it makes sense to update the weights one by one, as the value of the next child depends on the previous neural network update.
+
+%-------------------------------------------------------------------------
+
+%------------------------------------------------------------------------
+
+
+\section{Code}
+
+While most of the methods and concepts were pulled from the paper Solving the Rubik’s Cube Without Human Knowledge (McAleer), there was not an available repository.  The model construction, neural network, and search algorithm all had to be written from scratch.  Our implementation can be found on github here: https://github.com/mkovalski/cs4995\textunderscore cube.  Our network and framework were implemented using the Tensorflow library. 
 
 %-------------------------------------------------------------------------
 
