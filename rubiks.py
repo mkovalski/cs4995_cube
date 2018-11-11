@@ -14,6 +14,8 @@ class Cube:
     
     #dominant orientations: Top(white), Bottom(yellow)
     #secondary: Left(blue), Right(green)
+
+    #unique cube positions
     cublets = {"WB": 0, "WG": 1, 
                "WO": 2, "WR": 3,
                "YB": 4, "YG": 5,
@@ -24,6 +26,7 @@ class Cube:
                "YBO": 16, "YBR": 17, "YRG": 18, "YOG": 19, }
     inv_cublets = {v: k for k, v in cublets.items()}
 
+    #all states for edges
     edge_pos = {"WB": 0, "BW": 1, "WG": 2, "GW": 3,
                 "WO": 4, "OW": 5, "WR": 6, "RW": 7,
                 "YB": 8, "BY": 9, "YG": 10, "GY": 11, 
@@ -32,6 +35,7 @@ class Cube:
                 "BO": 20, "OB": 21, "BR": 22, "RB": 23, }
     inv_edge_pos = {v: k for k, v in edge_pos.items()}
            
+    #all states for corners
     corner_pos = {"WOB": 0, "BWO": 1, "OBW": 2,
                   "WBR": 3, "RWB": 4, "BRW": 5,
                   "WGO": 6, "OWG": 7, "GOW": 8,
@@ -43,31 +47,38 @@ class Cube:
     inv_corner_pos = {v: k for k, v in corner_pos.items()}
 
   
+    #Begin with solved cube state or seed with cube state
     def __init__(self, scramble_distance=0, cube = None):
-        
         if cube is None:
             self.reset()
         else :
             self.cube = cube
             self.scramble_distance = scramble_distance
     
+    #Reset to solved cube state
     def reset(self):
         self.cube = self.solved_cube()
         self.scramble_distance = 0
     
+    #Get highest probability out of list of moves and rotate accordingly
     def move(self, move_prob):
         move = np.argmax(move_prob)
         self.rotate(move)
         return int(self.is_solved())
         
+    #Swap positions of two corners/edge orientations
     def swap(self, a, b):
+	#Get orientation in given positions
         a_ = np.argmax(self.cube[self.cublets[a]])
         b_ = np.argmax(self.cube[self.cublets[b]])
+	#Reset row, only one orientation can exist in a given position
         self.cube[self.cublets[a]].fill(0)
         self.cube[self.cublets[b]].fill(0)
+	#Set the orientation to true, swapping positions
         self.cube[self.cublets[a], b_] = 1 
         self.cube[self.cublets[b], a_] = 1  
     
+    #Perform similar to swap function, however reverse edge orientation
     def swap_flip_edge(self, a, b):
         if len(a) > 2 or len(b) > 2:
             print("a:{} and b:{} must be an edge to flip".format(a, b))
@@ -75,6 +86,7 @@ class Cube:
             
         a_ = np.argmax(self.cube[self.cublets[a]])
         b_ = np.argmax(self.cube[self.cublets[b]])
+	#Reverse orientation
         a_ = self.edge_pos[self.inv_edge_pos[a_][::-1]]
         b_ = self.edge_pos[self.inv_edge_pos[b_][::-1]]
         
@@ -83,6 +95,7 @@ class Cube:
         self.cube[self.cublets[a], b_] = 1 
         self.cube[self.cublets[b], a_] = 1  
 
+    #Rotate orientation clockwise or counterclockwise in current position
     def reorient_corner(self, a, dire):
         cor = np.argmax(self.cube[self.cublets[a]])
         
@@ -106,15 +119,12 @@ class Cube:
         # WGO -> GOW
         return a[1]+a[2]+a[0]
         
-    def random_move(self):
-        moves = np.zeros((6), dtype = np.int32)
-        moves[random.randint(0,5)] = 1
-        
-        return self.move(moves)
-        
+    #Returns true if state matches solved state
     def is_solved(self):
         return np.all(self.cube == self.solved_cube())
         
+    #Perform rotation of given face 90 degrees clockwise
+    #Note a counterclockwise move is 3 clockwise rotations 
     def rotate(self, move):
         self.scramble_distance+=1
         
@@ -264,7 +274,7 @@ class Cube:
                 self.swap("YRG", "YBR")
                 self.swap("YBR", "WBR")
 
-    
+    #Solved state, each orientation is in default position
     def solved_cube(self):
         solved = np.zeros((20, 24), dtype = np.int32)
 
@@ -292,11 +302,3 @@ class Cube:
               
         return solved
 
-a = Cube()
-a.rotate(0)
-a.rotate(3)
-a.rotate(4)
-a.rotate(0)
-#a.rotate(3)
-#a.rotate(4)
-tmp = a.cube
