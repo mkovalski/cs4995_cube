@@ -99,11 +99,11 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
-    parser.add_argument("-m", type = int, default = 2000000)
-    parser.add_argument("-n", type = int, default = 100)
-    parser.add_argument('--allow_move_back', action='store_true')
-    parser.add_argument('--batch', action='store_true')
-    parser.add_argument('--output_dir', type = str, default = 'output')
+    parser.add_argument("-m", type = int, default = 2000000, help = "Number of trials")
+    parser.add_argument("-n", type = int, default = 100, help = "How many moves to make from state to state")
+    parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
+    parser.add_argument('--batch', action='store_true', help="Train the neural network in batches")
+    parser.add_argument('--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
 
     args = parser.parse_args()
     adi(M = args.m, N = args.n, 
