@@ -30,7 +30,7 @@ class ADINetwork(object):
         p_out = tf.nn.softmax(p2)
 
         v1 = tf.layers.dense(d1, 512, activation = self.activation)
-        v_out = tf.layers.dense(v1, 1, activation = self.activation)
+        v_out = tf.layers.dense(v1, 1, activation = None)
 
         return (v_out, p_out)
     
