@@ -8,7 +8,7 @@ import argparse
 import copy
 import pdb
 
-def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
+def adi(M = 1000, N = 1000, allow_move_back = False,
         output_dir = 'output'):
 
     '''Function for Autodidactic Iteration
@@ -21,9 +21,12 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
     cube = Cube()
 
     # Set up the neural network
-    network = ADINetwork(output_dir)
-    network.setup()
+    weighted_network = ADINetwork(output_dir)
+    weighted_network.setup()
     
+    unweighted_network = ADINetwork(output_dir)
+    unweighted_network.setup()
+
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
 
@@ -48,8 +51,12 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
                 cubes[k, :] = tmp_cube.cube.reshape(1, -1)
                 del tmp_cube
 
-            vals, _ = network.evaluate(cubes)
+            vals, _ = unweighted_network.evaluate(cubes)
+            
+            uw_vals = copy.copy(vals)
+
             vals *= (1/w)
+
             vals += true_values
             
             idx = np.argmax(vals)
@@ -57,12 +64,14 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
             all_policies[n, :] = actions[idx, :]
             all_states[n, :] = copy.copy(cube.cube).flatten()
             
-            if not batch:
-                cost = network.train(all_states[n, :].reshape(1, -1), 
-                    all_policies[n, :].reshape(1, -1), 
-                    all_values[n, :].reshape(1, -1))
+            cost = weighted_network.train(all_states[n, :].reshape(1, -1), 
+                all_policies[n, :].reshape(1, -1), 
+                all_values[n, :].reshape(1, -1))
+            
+            un_cost = unweighted_network.train(all_states[n, :].reshape(1, -1), 
+                all_policies[n, :].reshape(1, -1), 
+                un_vals[idx].reshape(1, -1))
 
-            # Try some different stuff out
             # Don't move the cube back to a position that it was just in, need
             # to explore more
             choices = np.arange(0, actions.shape[0])
@@ -76,36 +85,28 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
             last_move = np.argmax(action)
             cube.move(action)
             
-            # I have issues with this. I could check if the random move decided was the 
-            # opposite of the last move made. If it is, I'm actually moving closer to
-            # the larger and the weight shouldn't increase. But, this implies heuristic
-            # based approach, which this method is not supposed to be
             w += 1 
         
-        if batch:
-            cost = network.train(all_states, all_policies, all_values)
-
         print("Iteration {} complete".format(m))
         print("- Latest cost: {}".format(cost))
         
         # Log stuff
         if m % 10:
-            network.log()
+            weighted_network.log()
         
         # Checkpoint
         if m % 1000 == 0:
             print("-- Saving network at iteration {}".format(m))
-            network.save()
+            weighted_network.save()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
     parser.add_argument("-m", type = int, default = 2000000, help = "Number of trials")
     parser.add_argument("-n", type = int, default = 100, help = "How many moves to make from state to state")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
-    parser.add_argument('--batch', action='store_true', help="Train the neural network in batches")
     parser.add_argument('--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
 
     args = parser.parse_args()
     adi(M = args.m, N = args.n, 
-        allow_move_back = args.allow_move_back, batch = args.batch,
+        allow_move_back = args.allow_move_back,
         output_dir = args.output_dir)
