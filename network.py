@@ -34,18 +34,30 @@ class ADINetwork(object):
 
         return (v_out, p_out)
     
-    def setup(self):
+    def setup(self, batch_size = 1):
         self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
         self.y_policy = tf.placeholder(shape = (None, 12), dtype = tf.float32)
         
+        weight = (1/ np.arange(1, batch_size+1)).reshape(batch_size, 1).astype(np.float32)
+
+        self.weight = tf.get_variable('weight', initializer = weight, trainable = False)
+
         self.v_out, self.p_out = self.inference(self.x)
+        
+        # Weighted cross entropy based on which batch it is
+        # Later batches are searched further down the tree, should have less weight
+        # associated with it
+        self.cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.p_out, labels=self.y_policy)
+        self.weighted_cross_entropy = self.weight * self.cross_entropy
 
-        v_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.p_out, labels=self.y_policy))
-        p_cost = tf.losses.mean_squared_error(self.y_value, self.v_out)
-        self.cost = tf.reduce_mean(v_cost + p_cost)
+        self.v_cost = tf.reduce_mean(self.weighted_cross_entropy)
+        
+        self.p_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = self.weight)
 
-        self.loss = tf.train.RMSPropOptimizer(1e-4).minimize(self.cost)
+        self.cost = tf.reduce_mean(self.v_cost + self.p_cost)
+
+        self.loss = tf.train.RMSPropOptimizer(1e-5).minimize(self.cost)
 
         self.sess = tf.Session()
         
@@ -74,8 +86,8 @@ class ADINetwork(object):
     def log(self):
         pass
 
-    def train(self, states, actions, values, weight = 1):
-
+    def train(self, states, actions, values):
+        
         _, cost = self.sess.run([self.loss, self.cost], feed_dict = {self.x: states,
                                              self.y_value: values,
                                              self.y_policy: actions})
