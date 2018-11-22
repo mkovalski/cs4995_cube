@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-from network import ADINetwork
+from network import ValueNetwork, PolicyNetwork
 from rubiks import Cube
 import argparse
 import copy
@@ -21,8 +21,10 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
     cube = Cube()
 
     # Set up the neural network
-    network = ADINetwork(output_dir)
-    network.setup(batch_size = N if batch else 1)
+    v_network = ValueNetwork(output_dir)
+    p_network = PolicyNetwork(output_dir)
+    v_network.setup(batch_size = N if batch else 1)
+    p_network.setup(batch_size = N if batch else 1)
     
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
@@ -52,7 +54,7 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
                 cubes[k, :] = tmp_cube.cube.reshape(1, -1)
                 del tmp_cube
             
-            vals, _ = network.evaluate(cubes)
+            vals = v_network.evaluate(cubes)
             vals += true_values
             
             idx = np.argmax(vals)
@@ -61,7 +63,11 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
             all_states[n, :] = copy.copy(cube.cube).flatten()
             
             if not batch:
-                cost = network.train(all_states[n, :].reshape(1, -1), 
+                cost_v = v_network.train(all_states[n, :].reshape(1, -1), 
+                    all_policies[n, :].reshape(1, -1), 
+                    all_values[n, :].reshape(1, -1))
+                
+                cost_p = np_network.train(all_states[n, :].reshape(1, -1), 
                     all_policies[n, :].reshape(1, -1), 
                     all_values[n, :].reshape(1, -1))
 
@@ -101,20 +107,23 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
             weight_vector[n] = 1 / w
         
         if batch:
-            cost = network.train(all_states, all_policies, all_values,
+            cost_v = v_network.train(all_states, all_values,
+                                 weight = weight_vector)
+            
+            cost_p = p_network.train(all_states, all_policies,
                                  weight = weight_vector)
 
         print("Iteration {} complete".format(m))
-        print("- Latest cost: {}".format(cost))
+        print("- Latest cost: {}".format(cost_v + cost_p))
         
         # Log stuff
         if m % 10:
-            network.log()
+            v_network.log()
         
         # Checkpoint
         if m % 1000 == 0:
             print("-- Saving network at iteration {}".format(m))
-            network.save()
+            v_network.save()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
