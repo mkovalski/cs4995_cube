@@ -36,29 +36,35 @@ class ADINetwork(object):
         return (v_out, p_out)
     
     def setup(self, batch_size = 1):
+        '''
+        To use weighted values, provide a fixed batch size since the 
+        weight vector will also be fixed
+        
+        '''
+
+        lr = 1e-5
+
         self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
         self.y_policy = tf.placeholder(shape = (None, 12), dtype = tf.float32)
         
-        weight = (1/ np.arange(1, batch_size+1)).reshape(batch_size, 1).astype(np.float32)
-
-        self.weight = tf.get_variable('weight', initializer = weight, trainable = False)
+        self.weight = tf.placeholder(shape = (None,), dtype = tf.float32)
 
         self.v_out, self.p_out = self.inference(self.x)
         
         # Weighted cross entropy based on which batch it is
         # Later batches are searched further down the tree, should have less weight
         # associated with it
-        self.cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.p_out, labels=self.y_policy)
-        self.weighted_cross_entropy = self.weight * self.cross_entropy
+        self.cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.p_out, labels=self.y_policy)
+        self.weighted_cross_entropy = tf.math.multiply(self.cross_entropy, self.weight)
 
-        self.v_cost = tf.reduce_mean(self.weighted_cross_entropy)
+        self.p_cost = tf.reduce_mean(self.weighted_cross_entropy)
         
-        self.p_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = self.weight)
+        self.v_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = tf.reshape(self.weight, (batch_size, 1)))
 
-        self.cost = tf.reduce_mean(self.v_cost + self.p_cost)
+        self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
 
-        self.loss = tf.train.RMSPropOptimizer(1e-5).minimize(self.cost)
+        self.loss = tf.train.RMSPropOptimizer(lr).minimize(self.cost)
 
         self.sess = tf.Session()
         
@@ -87,14 +93,33 @@ class ADINetwork(object):
     def log(self):
         pass
 
-    def train(self, states, actions, values, weight = None):
+    def train(self, states, actions, values, weight):
         
-        if not weight is None:
-            self.sess.run(tf.assign(self.weight, weight))
-
         _, cost = self.sess.run([self.loss, self.cost], feed_dict = {self.x: states,
                                              self.y_value: values,
-                                             self.y_policy: actions})
+                                             self.y_policy: actions,
+                                             self.weight: weight})
+        '''        
+        if self.local_step % 1000 == 0 and self.local_step != 0:
+
+            ce = self.sess.run(self.cross_entropy, feed_dict = {self.x: states,
+                                                 self.y_value: values,
+                                                 self.y_policy: actions,
+                                                 self.weight : weight})
+            wce = self.sess.run(self.weighted_cross_entropy, feed_dict = {self.x: states,
+                                                 self.y_value: values,
+                                                 self.y_policy: actions,
+                                                 self.weight: weight})
+
+
+            v_cost = self.sess.run(self.v_cost, feed_dict = {self.x: states,
+                                                 self.y_value: values,
+                                                 self.y_policy: actions,
+                                                 self.weight: weight})
+            
+            pdb.set_trace()
+        '''
+
         self.local_step += 1
         self.global_step += 1
         return cost

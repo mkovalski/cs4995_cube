@@ -37,7 +37,7 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
         all_states = np.zeros((N, 24 * 20))
         
         w = 1
-        weight_vector = np.ones((N, 1))
+        weight_vector = np.ones(N)
 
         for n in range(N):
             true_values = np.zeros((actions.shape[0], 1))
