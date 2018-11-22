@@ -36,6 +36,9 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
         all_policies = np.zeros((N, 12))
         all_states = np.zeros((N, 24 * 20))
         
+        w = 1
+        weight_vector = np.ones((N, 1))
+
         for n in range(N):
             true_values = np.zeros((actions.shape[0], 1))
 
@@ -82,13 +85,24 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
                     choices = np.delete(choices, r_ind)
 
             action = actions[np.random.choice(choices), :]
+            
+            # Adjust weight vector here
+            if len(last_moves >= 2) and np.all(last_moves[-2:] == action):
+                w -= 1
+            else:
+                w += 1
+            
+            # Queueing
             last_moves = np.insert(last_moves, 0, np.argmax(action))
             if last_moves.size > 3:
                 last_moves = np.delete(last_moves, -1)
             cube.move(action)
+
+            weight_vector[n] = 1 / w
         
         if batch:
-            cost = network.train(all_states, all_policies, all_values)
+            cost = network.train(all_states, all_policies, all_values,
+                                 weight = weight_vector)
 
         print("Iteration {} complete".format(m))
         print("- Latest cost: {}".format(cost))

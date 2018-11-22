@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import pdb
 
 class ADINetwork(object):
     def __init__(self, output_dir):
@@ -86,8 +87,11 @@ class ADINetwork(object):
     def log(self):
         pass
 
-    def train(self, states, actions, values):
+    def train(self, states, actions, values, weight = None):
         
+        if not weight is None:
+            self.sess.run(tf.assign(self.weight, weight))
+
         _, cost = self.sess.run([self.loss, self.cost], feed_dict = {self.x: states,
                                              self.y_value: values,
                                              self.y_policy: actions})
