@@ -128,17 +128,10 @@ class Cube:
     def rotate(self, move):
         self.scramble_distance+=1
         
-        if move == 0: # Top (white) (right cw)
-            self.swap("WR", "WB") 
-            self.swap("WB", "WO") 
-            self.swap("WO", "WG") 
-            
-            self.swap("WBR", "WOB")
-            self.swap("WOB", "WGO")
-            self.swap("WGO", "WRG")
-        
-        if move == 1: # Top (white) (right cw)
-            for i in range(3):
+        iters = 1 if move % 2 == 0 else 3
+
+        if move in [0, 1]: # Top (white) (right cw)
+            for i in range(iters):
                 self.swap("WR", "WB") 
                 self.swap("WB", "WO") 
                 self.swap("WO", "WG") 
@@ -146,18 +139,9 @@ class Cube:
                 self.swap("WBR", "WOB")
                 self.swap("WOB", "WGO")
                 self.swap("WGO", "WRG")
-
-        elif move == 2: # Bottom (yellow) (right cw)
-            self.swap("YR", "YB") 
-            self.swap("YB", "YO") 
-            self.swap("YO", "YG") 
         
-            self.swap("YBR", "YBO")
-            self.swap("YBO", "YOG")
-            self.swap("YOG", "YRG")
-                
-        elif move == 3: # Bottom (yellow) (right cw)
-            for i in range(3):
+        elif move in [2, 3]: # Bottom (yellow) (right cw)
+            for i in range(iters):
                 self.swap("YR", "YB") 
                 self.swap("YB", "YO") 
                 self.swap("YO", "YG") 
@@ -165,22 +149,9 @@ class Cube:
                 self.swap("YBR", "YBO")
                 self.swap("YBO", "YOG")
                 self.swap("YOG", "YRG")
-
-        elif move == 4: # Left (blue) (front)
-            self.swap("BR", "YB") 
-            self.swap("YB", "BO") 
-            self.swap("BO", "WB") 
-
-            self.reorient_corner("WOB", -1)
-            self.reorient_corner("WBR", 1)
-            self.reorient_corner("YBO", 1)
-            self.reorient_corner("YBR", -1)  ##
-            self.swap("WBR", "YBR")
-            self.swap("YBR", "YBO")
-            self.swap("YBO", "WOB")
-        
-        elif move == 5: # Left (blue) (front)
-            for i in range(3):
+                
+        elif move in [4, 5]: # Left (blue) (front)
+            for i in range(iters):
                 self.swap("BR", "YB") 
                 self.swap("YB", "BO") 
                 self.swap("BO", "WB") 
@@ -192,22 +163,9 @@ class Cube:
                 self.swap("WBR", "YBR")
                 self.swap("YBR", "YBO")
                 self.swap("YBO", "WOB")
-
-        elif move == 6: # Right (green) (back )
-            self.swap("GR", "WG") 
-            self.swap("WG", "GO") 
-            self.swap("GO", "YG") 
-            
-            self.reorient_corner("WRG", -1)
-            self.reorient_corner("WGO", 1)
-            self.reorient_corner("YOG", -1)
-            self.reorient_corner("YRG", 1)  ##
-            self.swap("WGO", "YOG")
-            self.swap("YOG", "YRG")
-            self.swap("YRG", "WRG")
         
-        elif move == 7: # Right (green) (back )
-            for i in range(3):
+        elif move in [6, 7]: # Right (green) (back )
+            for i in range(iters):
                 self.swap("GR", "WG") 
                 self.swap("WG", "GO") 
                 self.swap("GO", "YG") 
@@ -219,22 +177,9 @@ class Cube:
                 self.swap("WGO", "YOG")
                 self.swap("YOG", "YRG")
                 self.swap("YRG", "WRG")
-                
-        elif move == 8: # Front (orange) (flip edge) (right cw)
-            self.swap_flip_edge("WO", "BO")
-            self.swap_flip_edge("BO", "YO")
-            self.swap_flip_edge("YO", "GO")
-            
-            self.reorient_corner("WOB", 1)
-            self.reorient_corner("WGO", -1)
-            self.reorient_corner("YOG", 1)
-            self.reorient_corner("YBO", -1)
-            self.swap("WOB", "YBO")
-            self.swap("YBO", "YOG")
-            self.swap("YOG", "WGO")
         
-        elif move == 9: # Front (orange) (flip edge) (right cw)
-            for i in range(3):
+        elif move in [8, 9]: # Front (orange) (flip edge) (right cw)
+            for i in range(iters):
                 self.swap_flip_edge("WO", "BO")
                 self.swap_flip_edge("BO", "YO")
                 self.swap_flip_edge("YO", "GO")
@@ -247,21 +192,8 @@ class Cube:
                 self.swap("YBO", "YOG")
                 self.swap("YOG", "WGO")
         
-        elif move == 10: # Back (red) (flip edge) (left ccw)
-            self.swap_flip_edge("YR", "BR")
-            self.swap_flip_edge("BR", "WR")
-            self.swap_flip_edge("WR", "GR")
-            
-            self.reorient_corner("WBR", -1)
-            self.reorient_corner("WRG", 1)
-            self.reorient_corner("YBR", -1)
-            self.reorient_corner("YRG", 1)
-            self.swap("WRG", "YRG")
-            self.swap("YRG", "YBR")
-            self.swap("YBR", "WBR")
-        
-        elif move == 11: # Back (red) (flip edge) (left ccw)
-            for i in range(3):
+        elif move in [10, 11]: # Back (red) (flip edge) (left ccw)
+            for i in range(iters):
                 self.swap_flip_edge("YR", "BR")
                 self.swap_flip_edge("BR", "WR")
                 self.swap_flip_edge("WR", "GR")
@@ -273,6 +205,10 @@ class Cube:
                 self.swap("WRG", "YRG")
                 self.swap("YRG", "YBR")
                 self.swap("YBR", "WBR")
+        
+        else:
+            print("Unknown move")
+            sys.exit(1)
 
     #Solved state, each orientation is in default position
     def solved_cube(self):
@@ -301,4 +237,30 @@ class Cube:
         solved[self.cublets["YOG"], self.corner_pos["YOG"]] = 1 
               
         return solved
+
+    def test(self, M = 100, N = 100):
+        
+        pos_moves = 12
+        for n in range(N):
+            self.reset()
+            
+            actions = np.eye(pos_moves)[np.random.choice(pos_moves, M)]
+
+            for m in range(M):
+                self.move(actions[m, :])        
+            
+            # Reverse moves
+            rev_idx = np.where(actions == 1)[1]
+            mod_moves = rev_idx % 2
+            rev_idx -= mod_moves
+            mod_moves -= 1
+            rev_idx -= mod_moves
+            
+            rev_moves = np.zeros((M, pos_moves))
+            rev_moves[np.arange(M), rev_idx] = 1
+            
+            for m in reversed(range(M)):
+                self.move(rev_moves[m, :])        
+            
+            assert(self.is_solved())
 
