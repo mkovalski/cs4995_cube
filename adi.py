@@ -8,7 +8,7 @@ import argparse
 import copy
 import pdb
 
-def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
+def adi(M = 1000, N = 100, allow_move_back = False,
         output_dir = 'output'):
 
     '''Function for Autodidactic Iteration
@@ -25,7 +25,7 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
     p_network = PolicyNetwork(output_dir)
     v_network.setup(batch_size = N if batch else 1)
     p_network.setup(batch_size = N if batch else 1)
-    
+
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
 
@@ -56,11 +56,9 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
             
             vals = v_network.evaluate(cubes)
             vals += true_values
+            uw_vals += true_values
             
             idx = np.argmax(vals)
-            all_values[n, :] = vals[idx]
-            all_policies[n, :] = actions[idx, :]
-            all_states[n, :] = copy.copy(cube.cube).flatten()
             
             if not batch:
                 cost_v = v_network.train(all_states[n, :].reshape(1, -1), 
@@ -71,11 +69,11 @@ def adi(M = 1000, N = 1000, allow_move_back = False, batch = False,
                     all_policies[n, :].reshape(1, -1), 
                     all_values[n, :].reshape(1, -1))
 
-            # Try some different stuff out
             # Don't move the cube back to a position that it was just in, need
-            # to explore more
-            choices = np.arange(0, actions.shape[0])
+            # to explore more. Additionally, don't make the same move if it was
+            # made 3 times in a row
 
+            choices = np.arange(0, actions.shape[0])
             if not allow_move_back:
                 r_ind = []
                 if last_moves.size != 0:
@@ -135,5 +133,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     adi(M = args.m, N = args.n, 
-        allow_move_back = args.allow_move_back, batch = args.batch,
+        allow_move_back = args.allow_move_back,
         output_dir = args.output_dir)

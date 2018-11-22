@@ -92,7 +92,7 @@ class MCTS(object):
         while True:
             _, solved= root_node.search(self.network)
             if solved:
-                print("SOLVED PUZZLE YEEEEAAAAHHHHH")
+                print("SOLVED PUZZLE YEE HAW")
                 break
 
 if __name__ == '__main__':
@@ -114,5 +114,4 @@ if __name__ == '__main__':
     
     print("Starting search")
     mcts.search(cube)
-
 
