@@ -69,6 +69,7 @@ class Node(object):
             return value, solved
         else:
             action = self.policy()
+            print(action)
             value, solved = self.children[action].search(network)
             self.w_s[action] = np.max([value, self.w_s[action]])
             self.n_s[action] += 1
@@ -76,7 +77,7 @@ class Node(object):
             return value, solved
 
 class MCTS(object):
-    def __init__(self, checkpoint, exploration = 2, virt_loss = 2):
+    def __init__(self, checkpoint, exploration = 2.0, virt_loss = 2.0):
         self.network = ADINetwork(output_dir = checkpoint)
         self.network.setup()
         self.max_steps = 200
@@ -98,8 +99,8 @@ class MCTS(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
     parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
-    parser.add_argument("-e", "--exploration", default = 0.01, help = "exploration hyperparameter")
-    parser.add_argument("-v", "--v_loss", default = 0.01, help = "virtual loss hyperparameter")
+    parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
+    parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
 
     args = parser.parse_args()
 
@@ -109,7 +110,7 @@ if __name__ == '__main__':
     cube = Cube()
     actions = np.eye(12)
 
-    for i in range(8):
+    for i in range(5):
         cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
     
     print("Starting search")
