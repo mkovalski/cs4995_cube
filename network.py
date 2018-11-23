@@ -10,12 +10,16 @@ class ADINetwork(object):
         self.activation = tf.nn.elu
         self.sess = None
         self.save_dir = output_dir
+        self.checkpoint_dir = os.path.join(self.save_dir, 'checkpoints')
 
         if self.save_dir[-1] != '/':
             self.save_dir = self.save_dir + '/'
 
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir)
+
+        if not os.path.isdir(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
     
         self.global_step = 0
         self.local_step = 0
@@ -31,7 +35,7 @@ class ADINetwork(object):
         p_out = tf.nn.softmax(p2)
 
         v1 = tf.layers.dense(d1, 512, activation = self.activation)
-        v_out = tf.layers.dense(v1, 1, activation = None)
+        v_out = tf.layers.dense(v1, 1, activation = tf.sigmoid)
 
         return (v_out, p_out)
     
@@ -42,7 +46,7 @@ class ADINetwork(object):
         
         '''
 
-        lr = 1e-5
+        lr = 1e-4
 
         self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
@@ -70,10 +74,9 @@ class ADINetwork(object):
         
         self.saver = tf.train.Saver()
         
-        checkpoint_path = os.path.join(self.save_dir, 'checkpoints')
-        if os.path.isdir(checkpoint_path):
+        if os.path.isdir(self.save_dir):
             try:
-                self.saver.restore(self.sess, tf.train.latest_checkpoint(checkpoint_path))
+                self.saver.restore(self.sess, tf.train.latest_checkpoint(self.save_dir))
             except Exception as e:
                 print("Could not load checkpoint, sorry!")
                 print(e)
@@ -88,7 +91,7 @@ class ADINetwork(object):
         return value, policy
     
     def save(self):
-        self.saver.save(self.sess, self.save_dir, global_step = self.global_step)
+        self.saver.save(self.sess, self.checkpoint_dir, global_step = self.global_step)
     
     def log(self):
         pass
