@@ -35,6 +35,10 @@ class ADINetwork(object):
         p_out = tf.nn.softmax(p2)
 
         v1 = tf.layers.dense(d1, 512, activation = self.activation)
+
+        # Added a sigmoid activation, although the paper doesn't
+        # use an activation function here. Since sigmoid spans 0 to 1
+        # and the true reward also does, I do this.
         v_out = tf.layers.dense(v1, 1, activation = tf.sigmoid)
 
         return (v_out, p_out)
