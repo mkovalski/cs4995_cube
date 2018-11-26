@@ -9,6 +9,9 @@ import argparse
 import pdb
 import sys
 
+from game import Game_Rubiks
+from monte_carlo import MonteCarlo
+
 class Node(object):
     ''' A node in the MCTS algorithm. Contains information such as number
     of visits, etc.
@@ -98,13 +101,15 @@ class MCTS(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
-    parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
-    parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
-    parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
+    # parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
+    # parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
+    # parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
+    parser.add_argument("-t", "--simulation-time", default=.5, help="time limit per simulation")
+
 
     args = parser.parse_args()
 
-    mcts = MCTS(args.checkpoint, args.exploration, args.v_loss)
+    # mcts = MCTS(args.checkpoint, args.exploration, args.v_loss)
     
     # Shuffle a cube a bunch
     cube = Cube()
@@ -113,7 +118,39 @@ if __name__ == '__main__':
     for i in range(5):
         cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
     
-    print("Starting search")
-    mcts.search(cube)
+    # print("Starting search")
+    # mcts.search(cube)
+
+
+#####
+    game = Game_Rubiks()
+    mcts = MonteCarlo(game)
+
+    state = cube
+
+    winner= False
+    i = 0
+    retry = 0
+    while winner == False:
+        while retry < 5:
+            print(i, retry)
+            mcts.runSearch(state, overall_timeout=(args.simulation_time*12)*(retry+1), simulation_timeout = args.simulation_time)
+            play = mcts.bestPlay(state)
+            if play >= 0:
+                break
+
+            retry+=1
+
+        retry = 0
+        if play < 0:
+            print("Not enough information!")
+            pdb.set_trace()
+
+        state = game.nextState(state, play)
+        winner = game.winner(state)
+        i += 1
+
+        if i % 10 ==0 :
+            pdb.set_trace()
 
 

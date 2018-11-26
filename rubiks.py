@@ -65,7 +65,7 @@ class Cube:
         self.history = []
     
     def hash(self):
-        return hash(self.cube.tostring()) #+ hash(np.asarray(self.history).tostring())
+        return hash(self.cube.tostring()) + hash(np.asarray(self.history).tostring())
 
     #Get highest probability out of list of moves and rotate accordingly
     def move(self, move_prob):
