@@ -79,49 +79,31 @@ class Node(object):
             self.l_s[action] -= self.v
             return value, solved
 
-class MCTS(object):
-    def __init__(self, checkpoint, exploration = 2.0, virt_loss = 2.0):
-        self.network = ADINetwork(output_dir = checkpoint)
-        self.network.setup()
-        self.max_steps = 200
-        
-        # Hyperparameters
-        # Exploration parameter
-        self.c = exploration
-        self.v = virt_loss
-
-    def search(self, cube):
-        root_node = Node(None, cube, self.c, self.v, self.network)
-
-        while True:
-            _, solved= root_node.search(self.network)
-            if solved:
-                print("SOLVED PUZZLE YEEEEAAAAHHHHH")
-                break
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
-    # parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
-    # parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
-    # parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
-    parser.add_argument("-t", "--simulation-time", default=.5, help="time limit per simulation")
+    #parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
+    parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
+    parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
+    parser.add_argument("-t", "--simulation-time", default=.5, type=float, help="time limit per simulation")
+    parser.add_argument("-o", "--overall-time", default=0, type=float, help="time limit tree search")
+    parser.add_argument("-s", "--shuffle", default=3, type=int, help="shuffles from the start state")
 
 
     args = parser.parse_args()
-
-    # mcts = MCTS(args.checkpoint, args.exploration, args.v_loss)
     
     # Shuffle a cube a bunch
     cube = Cube()
     actions = np.eye(12)
 
-    for i in range(5):
+    for i in range(args.shuffle):
         cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
     
-    # print("Starting search")
-    # mcts.search(cube)
+    if args.overall_time < args.simulation_time:
+        args.overall_time = args.simulation_time + 1
 
 
+    print(cube.history)
 #####
     game = Game_Rubiks()
     mcts = MonteCarlo(game)
@@ -134,8 +116,8 @@ if __name__ == '__main__':
     while winner == False:
         while retry < 5:
             print(i, retry)
-            mcts.runSearch(state, overall_timeout=(args.simulation_time*12)*(retry+1), simulation_timeout = args.simulation_time)
-            play = mcts.bestPlay(state)
+            mcts.runSearch(state, overall_timeout=args.overall_time*(retry+1), simulation_timeout = args.simulation_time)
+            play = mcts.bestPlay(state, policy="max")
             if play >= 0:
                 break
 
@@ -150,7 +132,9 @@ if __name__ == '__main__':
         winner = game.winner(state)
         i += 1
 
-        if i % 10 ==0 :
+        if i % 5 ==0 :
             pdb.set_trace()
+
+    print("YOU WON", state.history)
 
 

@@ -17,19 +17,19 @@ class MonteCarlo:
    * @param {Game} game - The game to query regarding legal moves and state advancement.
    * @param {number} UCB1ExploreParam - The square of the bias parameter in the UCB1 algorithm; defaults to 2.
    """
-  def __init__(self, game, checkpoint, exploration = 2.0, virt_loss = 2.0) :
+  def __init__(self, game, checkpoint = None, exploration = 2.0, virt_loss = 2.0, UCB1ExploreParam = 2) :
     self.game = game
     self.nodes = {}
     
-    self.network = ADINetwork(output_dir = checkpoint)
-    self.network.setup()
+    # self.network = ADINetwork(output_dir = checkpoint)
+    # self.network.setup()
   
     # Hyperparameters
     # Exploration parameter
-    self.c = exploration
-    self.v = virt_loss
     MonteCarloNode.c = exploration
     MonteCarloNode.v = virt_loss
+
+    self.UCB1ExploreParam = UCB1ExploreParam
 
 
   """
@@ -98,9 +98,10 @@ class MonteCarlo:
     allPlays = node.allPlays()
     bestPlay = 0
 
+    maxx = -np.Infinity
+
     # Most visits (robust child)
     if policy == "robust":
-      maxx = -np.Infinity
       for play in allPlays:
         childNode = node.childNode(play)
         if childNode.n_plays > maxx:
@@ -110,16 +111,19 @@ class MonteCarlo:
 
     # Highest winrate (max child)
     elif policy == "max":
-      maxx = -np.Infinity
       for play in allPlays:
         childNode = node.childNode(play)
         ratio = childNode.n_wins / childNode.n_plays
         if ratio > maxx:
           bestPlay = play
           maxx = ratio
-    
+
     else:
-      pass 
+      for play in allPlays:
+        childNode = node.childNode(play)
+        if childNode.value > maxx:
+          bestPlay = play
+          maxx = childNode.value 
 
     return bestPlay
   
@@ -138,6 +142,7 @@ class MonteCarlo:
       bestUCB1 = -np.Infinity
       for play in plays:
         childUCB1 = node.childNode(play).getUCB1(self.UCB1ExploreParam)
+        #_, childUCB1 = node.childNode(play).policy()
         if childUCB1 > bestUCB1:
           bestPlay = play
           bestUCB1 = childUCB1
@@ -202,6 +207,10 @@ class MonteCarlo:
       # Parent's choice
       if winner == 1 :
         node.n_wins += 1
+
+      # node.w_s[action] = np.max([value, node.w_s[action]])
+      # node.n_s[action] += 1
+      # node.l_s[action] -= self.v
       
       node = node.parent
     

@@ -13,9 +13,20 @@ class MonteCarloNode :
    * @param {State} state - The corresponding state.
    * @param {Play[]} unexpandedPlays - The node's unexpanded child plays.
   """
-  def __init__(self, parent, play, state, unexpandedPlays) :
+  def __init__(self, parent, play, state, unexpandedPlays, network = None) :
 
-    self.num_actions = 12
+    num_actions = 12
+
+    #_, self.p_s = network.evaluate(self.cube.cube.reshape(1, -1))
+
+    # Number of times an action a has been taken from state
+    self.n_s = np.zeros(num_actions)
+
+    # Maximal value of action a from state s
+    self.w_s = np.zeros(num_actions)
+    
+    # The current virtual loss for action a from state s 
+    self.l_s = np.zeros(num_actions)
 
 
     self.play = play
@@ -132,4 +143,6 @@ class MonteCarloNode :
     return q
 
   def policy(self):
-    return np.argmax(self.UCT() + self.QCT())
+    value = self.UCT() + self.QCT()
+    policy = np.argmax(value)
+    return policy, value[policy]
