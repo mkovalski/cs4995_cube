@@ -48,18 +48,25 @@ class Cube:
 
   
     #Begin with solved cube state or seed with cube state
-    def __init__(self, scramble_distance=0, cube = None):
+    def __init__(self, scramble_distance=0, cube = None, history = None):
+        if history is None:
+            history = []
         if cube is None:
             self.reset()
         else :
-            self.cube = cube
+            self.cube = np.copy(cube)
             self.scramble_distance = scramble_distance
+            self.history = history[:]
     
     #Reset to solved cube state
     def reset(self):
         self.cube = self.solved_cube()
         self.scramble_distance = 0
+        self.history = []
     
+    def hash(self):
+        return hash(self.cube.tostring()) #+ hash(np.asarray(self.history).tostring())
+
     #Get highest probability out of list of moves and rotate accordingly
     def move(self, move_prob):
         move = np.argmax(move_prob)
@@ -127,6 +134,7 @@ class Cube:
     #Note a counterclockwise move is 3 clockwise rotations 
     def rotate(self, move):
         self.scramble_distance+=1
+        self.history.append(move)
         
         iters = 1 if move % 2 == 0 else 3
 
