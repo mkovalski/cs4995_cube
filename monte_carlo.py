@@ -4,6 +4,8 @@ import pdb
 import random 
 import math
 import numpy as np
+from random import shuffle 
+from mpi4py import MPI
 
 """
  * Class representing the Monte Carlo search tree.
@@ -17,7 +19,7 @@ class MonteCarlo:
    * @param {Game} game - The game to query regarding legal moves and state advancement.
    * @param {number} UCB1ExploreParam - The square of the bias parameter in the UCB1 algorithm; defaults to 2.
    """
-  def __init__(self, game, checkpoint = None, exploration = 2.0, virt_loss = 2.0, UCB1ExploreParam = 2) :
+  def __init__(self, game, checkpoint = None, exploration = 2.0, virt_loss = 2.0, UCB1ExploreParam = 2, comm = None) :
     self.game = game
     self.nodes = {}
     
@@ -30,6 +32,12 @@ class MonteCarlo:
     MonteCarloNode.v = virt_loss
 
     self.UCB1ExploreParam = UCB1ExploreParam
+
+    self.parallel = True
+    self.comm = comm
+    if comm == None or comm.size < 2:
+      self.parallel = False
+
 
 
   """
@@ -58,7 +66,8 @@ class MonteCarlo:
     draws = 0
     totalSims = 0
     
-    end = time.time() + overall_timeout
+    start = time.time()
+    end = start + overall_timeout
 
     while time.time() < end:
 
@@ -67,7 +76,7 @@ class MonteCarlo:
 
       if node.isLeaf() == False and winner == False:
         node = self.expand(node)
-        winner = self.simulate(node, simulation_timeout)
+        winner = self.simulate(node = node, timeout = simulation_timeout)
       
       self.backpropagate(node, winner)
 
@@ -76,7 +85,7 @@ class MonteCarlo:
       totalSims+=1
     
 
-    return { "runtime": overall_timeout, "simulations": totalSims, "draws": draws }
+    return { "runtime": time.time()-start, "simulations": totalSims, "draws": draws }
   
 
   """
@@ -178,17 +187,50 @@ class MonteCarlo:
    * @param {MonteCarloNode} node - The node to simulate from.
    * @return {number} The winner of the terminal game state.
   """
-  def simulate(self, node, timeout):
+  def simulate(self, node = None, seed_state = None, timeout=1):
 
-    state = node.state
+    if not node is None:
+      state = node.state
+    elif seed_state is not None:
+      state = seed_state
+    else:
+      raise Exception("node and seed_state cannot both be None in simulation")
+
     winner = self.game.winner(state)
     end = time.time()+timeout
 
-    while winner == False and time.time()< end:
+    if self.parallel and self.comm.Get_rank() == 0:
+      if winner:
+        return winner
+
       plays = self.game.legalPlays(state)
-      play = plays[math.floor(random.random() * len(plays))]
-      state = self.game.nextState(state, play)
-      winner = self.game.winner(state)
+      shuffle(plays)
+
+      mpi_size = self.comm.Get_size()
+
+      play = np.zeros(1, dtype=np.int32)
+      for r in range(1, mpi_size):
+        play[0] = plays[r] if len(plays) >= mpi_size else plays[r%len(plays)]
+        self.comm.Send([play, MPI.INT] , dest=r)
+
+      self.comm.Bcast(node.state.cube)
+
+      winner = np.zeros(1, dtype=np.int32)
+      winners = np.zeros(1, dtype = np.int32)
+      self.comm.Reduce([winner, MPI.INT], [winners, MPI.INT], op=MPI.SUM, root = 0)
+
+      if winners > 0:
+        print("!!!", winners)
+        return 1
+      else: 
+        return 0
+
+    else:
+      while winner == False and time.time()< end:
+        plays = self.game.legalPlays(state)
+        play = plays[math.floor(random.random() * len(plays))]
+        state = self.game.nextState(state, play)
+        winner = self.game.winner(state)
     
 
     return winner
@@ -201,6 +243,7 @@ class MonteCarlo:
    * @param {number} winner - The winner to propagate.
   """
   def backpropagate(self, node, winner) :
+    # pdb.set_trace()
 
     while not node == None:
       node.n_plays += 1
