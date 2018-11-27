@@ -12,6 +12,8 @@ import sys
 from game import Game_Rubiks
 from monte_carlo import MonteCarlo
 
+from mpi4py import MPI
+
 class Node(object):
     ''' A node in the MCTS algorithm. Contains information such as number
     of visits, etc.
@@ -81,6 +83,11 @@ class Node(object):
 
 
 if __name__ == '__main__':
+
+    comm = MPI.COMM_WORLD
+    mpi_rank = comm.Get_rank()
+    mpi_size = comm.Get_size()
+
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
     #parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
     parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
@@ -92,49 +99,83 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    # Shuffle a cube a bunch
-    cube = Cube()
-    actions = np.eye(12)
-
-    for i in range(args.shuffle):
-        cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
-    
-    if args.overall_time < args.simulation_time:
-        args.overall_time = args.simulation_time + 1
-
-
-    print(cube.history)
-#####
     game = Game_Rubiks()
-    mcts = MonteCarlo(game)
+    mcts = MonteCarlo(game, comm = comm)
 
-    state = cube
+    if mpi_rank == 0:
+        parallel = True if mpi_size > 1 else False
+        if parallel:
+            print("Running in parallel")
 
-    winner= False
-    i = 0
-    retry = 0
-    while winner == False:
-        while retry < 5:
-            print(i, retry)
-            mcts.runSearch(state, overall_timeout=args.overall_time*(retry+1), simulation_timeout = args.simulation_time)
-            play = mcts.bestPlay(state, policy="max")
-            if play >= 0:
-                break
+        # Shuffle a cube a bunch
+        cube = Cube()
+        actions = np.eye(12)
 
-            retry+=1
+        for i in range(args.shuffle):
+            cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
+        
+        if args.overall_time < args.simulation_time:
+            args.overall_time = args.simulation_time + 1
 
+
+        print(cube.history)
+    #####
+
+        state = cube
+        winner= False
+        i = 0
         retry = 0
-        if play < 0:
-            print("Not enough information!")
-            pdb.set_trace()
+        stats = {"runtime":0}
+        while winner == False:
+            while retry < 5:
+                print(i, retry)
+                stats = mcts.runSearch(state, overall_timeout=args.overall_time*(retry+1), simulation_timeout = args.simulation_time)
+                play = mcts.bestPlay(state, policy="max")
+                if play >= 0:
+                    break
 
-        state = game.nextState(state, play)
-        winner = game.winner(state)
-        i += 1
+                retry+=1
 
-        if i % 5 ==0 :
-            pdb.set_trace()
+            retry = 0
+            if play < 0:
+                print("Not enough information!")
+                pdb.set_trace()
 
-    print("YOU WON", state.history)
+            print("   {} {}".format(play, stats["runtime"]))
+            state = game.nextState(state, play)
+            winner = game.winner(state)
+            i += 1
+
+            if i % 5 ==0 :
+                pdb.set_trace()
+
+        print("YOU WON", state.history)
+
+        finished = np.asarray([-1], dtype=np.int32)
+        for r in range(1, mpi_size):
+            comm.Send([finished, MPI.INT], dest= r)
+
+    else:
+        play = np.zeros(1, dtype=np.int32)
+        cube_rep = np.zeros((20, 24), dtype=np.int32)
+        winner = np.zeros(1, dtype=np.int32)
+        null = np.zeros(1, dtype = np.int32)
+
+        while True:
+            comm.Recv([play, MPI.INT], source=0)
+
+            if play[0] < 0:
+                break
+            else:
+                comm.Bcast(cube_rep, root=0)
+
+                state = Cube(cube = cube_rep)
+
+                state = game.nextState(state, play)
+                winner[0] = mcts.simulate(seed_state = state, timeout = args.simulation_time)
+
+                comm.Reduce([winner, MPI.INT], [null, MPI.INT], op=MPI.SUM, root = 0)
+
+
 
 
