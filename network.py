@@ -30,9 +30,7 @@ class ADINetwork(object):
         d1 = tf.layers.dense(d0, 2048, activation = self.activation)
 
         p1 = tf.layers.dense(d1, 512, activation = self.activation)
-        p2 = tf.layers.dense(p1, 12, activation = self.activation)
-
-        p_out = tf.nn.softmax(p2)
+        p_out = tf.layers.dense(p1, 12, activation = self.activation)
 
         v1 = tf.layers.dense(d1, 512, activation = self.activation)
 
@@ -43,7 +41,7 @@ class ADINetwork(object):
 
         return (v_out, p_out)
     
-    def setup(self, batch_size = 1):
+    def setup(self):
         '''
         To use weighted values, provide a fixed batch size since the 
         weight vector will also be fixed
@@ -60,6 +58,8 @@ class ADINetwork(object):
 
         self.v_out, self.p_out = self.inference(self.x)
         
+        self.policy = tf.nn.softmax(self.p_out)
+
         # Weighted cross entropy based on which batch it is
         # Later batches are searched further down the tree, should have less weight
         # associated with it
@@ -68,7 +68,7 @@ class ADINetwork(object):
 
         self.p_cost = tf.reduce_mean(self.weighted_cross_entropy)
         
-        self.v_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = tf.reshape(self.weight, (batch_size, 1)))
+        self.v_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = tf.reshape(self.weight, (-1, 1)))
 
         self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
 
@@ -91,7 +91,7 @@ class ADINetwork(object):
             # TODO: Find a way to get the global variable state
 
     def evaluate(self, state):
-        value, policy = self.sess.run([self.v_out, self.p_out], feed_dict = {self.x: state})
+        value, policy = self.sess.run([self.v_out, self.policy], feed_dict = {self.x: state})
         return value, policy
     
     def save(self):
