@@ -48,7 +48,7 @@ class ADINetwork(object):
         
         '''
 
-        lr = 1e-4
+        lr = 1e-5
 
         self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
