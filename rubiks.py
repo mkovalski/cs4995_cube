@@ -71,7 +71,8 @@ class Cube:
     def move(self, move_prob):
         move = np.argmax(move_prob)
         self.rotate(move)
-        return int(self.is_solved())
+        # OpenReview shows that they use -1 for not solved
+        return 1 if self.is_solved() else -1
         
     #Swap positions of two corners/edge orientations
     def swap(self, a, b):
@@ -272,3 +273,6 @@ class Cube:
             
             assert(self.is_solved())
 
+if __name__ == '__main__':
+    cube = Cube()
+    cube.test()
