@@ -16,7 +16,7 @@ def move(cube, depth):
         true_values = np.zeros((12, 1))
         
 
-def adi(M = 1000, K = 200, L = 5, allow_move_back = False, batch = False,
+def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, batch = False,
         search_depth = 1, output_dir = 'output'):
 
     '''Function for Autodidactic Iteration
@@ -27,17 +27,38 @@ def adi(M = 1000, K = 200, L = 5, allow_move_back = False, batch = False,
     
     # Setup cube
     cube = Cube()
-
-    N = K * L
+    
+    # The maximum that the batch size can be
+    # since it won't fit into gpu memory otherwise
+    max_batch = 400
+    
+    # Start with moves very close to the cube
+    # after some time, increase
+    K = 1
 
     # Set up the neural network
     network = ADINetwork(output_dir)
-    network.setup(batch_size = N if batch else 1)
+    network.setup()
     
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
 
-    for m in range(1, M+1):
+    # Number of times to run each of the simulations at each
+    # value of K
+    steps = np.arange(1, 31) * steps_per_iter
+
+    # Run a ton at the end
+    add_steps = (M - np.sum(steps))
+    if add_steps > 0:
+        steps[-1] += add_steps
+
+    print("Running {} total steps".format(np.sum(steps)))
+    
+    local_steps = 0
+    step_idx = 0
+
+    for m in range(M):
+        N = K * L
 
         all_values = np.zeros((N, 1))
         all_policies = np.zeros((N, 12))
@@ -66,19 +87,12 @@ def adi(M = 1000, K = 200, L = 5, allow_move_back = False, batch = False,
                     del tmp_cube
                 
                 vals, _ = network.evaluate(cubes)
-                vals[np.where(true_values == 1)[0]] = 1
-                
-                #vals += true_values
+                vals += true_values
                 
                 idx = np.argmax(vals)
                 all_values[(l*K) + k, :] = vals[idx]
                 all_policies[(l*K) + k, :] = actions[idx, :]
                 all_states[(l*K) + k, :] = copy.copy(cube.cube).flatten()
-                
-                if not batch:
-                    cost = network.train(all_states[n, :].reshape(1, -1), 
-                        all_policies[n, :].reshape(1, -1), 
-                        all_values[n, :].reshape(1, -1))
 
                 # Try some different stuff out
                 # Don't move the cube back to a position that it was just in, need
@@ -100,15 +114,27 @@ def adi(M = 1000, K = 200, L = 5, allow_move_back = False, batch = False,
                         choices = np.delete(choices, r_ind)
 
                 action = actions[np.random.choice(choices), :]
-                
+                max_action = np.argmax(action)
+
                 # Adjust weight vector here
-                if len(last_moves >= 2) and np.all(last_moves[-2:] == action):
-                    w -= 1
+                '''
+                if last_moves.size > 0:
+                    ind = 1 if last_moves[0] % 2 == 0 else -1
+                    if last_moves[0] + ind == max_action:
+                        w -= 1
+                    elif last_moves.size >= 2 and np.all(last_moves[-2:] == max_action):
+                        w -= 1
+                    else:
+                        w += 1
                 else:
                     w += 1
-                
+                '''
+
+                w += 1
+
                 # Queueing
-                last_moves = np.insert(last_moves, 0, np.argmax(action))
+                last_moves = np.insert(last_moves, 0, max_action)
+
                 if last_moves.size > 3:
                     last_moves = np.delete(last_moves, -1)
                 cube.move(action)
@@ -131,16 +157,24 @@ def adi(M = 1000, K = 200, L = 5, allow_move_back = False, batch = False,
             print("-- Saving network at iteration {}".format(m))
             network.save()
 
+        local_steps += 1
+        if local_steps >= steps[step_idx]:
+            step_idx += 1
+            local_steps = 0
+            K += 1
+            print("-- Increasing K to {}".format(K))
+            
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
     parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials")
-    parser.add_argument("-K", type = int, default = 40, help = "How many moves to make from state to state")
-    parser.add_argument("-L", type = int, default = 10, help = "How many moves to make from state to state")
+    parser.add_argument("-L", type = int, default = 40, help = "How many moves to make from state to state")
+    parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make from state to state")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
     parser.add_argument('--batch', action='store_true', help="Train the neural network in batches")
     parser.add_argument('-o', '--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
 
     args = parser.parse_args()
-    adi(M = args.M, K = args.K, L = args.L, 
+    adi(M = args.M, L = args.L, steps_per_iter = args.steps_per_iter,
         allow_move_back = args.allow_move_back, batch = args.batch,
         output_dir = args.output_dir)
