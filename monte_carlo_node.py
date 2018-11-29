@@ -99,7 +99,7 @@ class MonteCarloNode :
     ret = []
     for k, child in self.children.items() :
       if child["node"] == None:
-        ret.append(child["play"])
+        ret.append((k, child["play"]))
     
     return ret
   
