@@ -17,8 +17,6 @@ class MonteCarloNode :
 
     num_actions = 12
 
-    #_, self.p_s = network.evaluate(self.cube.cube.reshape(1, -1))
-
     # Number of times an action a has been taken from state
     self.n_s = np.zeros(num_actions)
 
@@ -29,7 +27,8 @@ class MonteCarloNode :
     self.l_s = np.zeros(num_actions)
 
     self.value = 0
-    self.p_s = 0
+    null, self.p_s = self.network.evaluate(state.cube.reshape(1, -1))
+
 
     self.play = play
     self.state = state
@@ -145,6 +144,6 @@ class MonteCarloNode :
     return q
 
   def policy(self):
-    value = self.UCT() + self.QCT()
-    action = np.argmax(value)
-    return value, action
+    values = self.UCT() + self.QCT()
+    action = np.argmax(values)
+    return values[0], action

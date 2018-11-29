@@ -14,6 +14,11 @@ from monte_carlo import MonteCarlo
 
 from mpi4py import MPI
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.logging.set_verbosity(tf.logging.ERROR)
+
+
 class Node(object):
     ''' A node in the MCTS algorithm. Contains information such as number
     of visits, etc.
@@ -88,6 +93,7 @@ if __name__ == '__main__':
     mpi_rank = comm.Get_rank()
     mpi_size = comm.Get_size()
 
+
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
     parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
     parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
@@ -95,7 +101,6 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--simulation-time", default=.5, type=float, help="time limit per simulation")
     parser.add_argument("-o", "--overall-time", default=0, type=float, help="time limit tree search")
     parser.add_argument("-s", "--shuffle", default=3, type=int, help="shuffles from the start state")
-
 
     args = parser.parse_args()
     
@@ -107,12 +112,15 @@ if __name__ == '__main__':
         if parallel:
             print("Running in parallel")
 
-        # Shuffle a cube a bunch
-        cube = Cube()
-        actions = np.eye(12)
+        while True: 
+           # Shuffle cube
+            cube = Cube()
+            actions = np.eye(12)
 
-        for i in range(args.shuffle):
-            cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
+            for i in range(args.shuffle):
+                cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
+            if not cube.is_solved():
+                break
         
         if args.overall_time < args.simulation_time:
             args.overall_time = args.simulation_time + 1
@@ -159,6 +167,7 @@ if __name__ == '__main__':
         play = np.zeros(1, dtype=np.int32)
         cube_rep = np.zeros((20, 24), dtype=np.int32)
         winner = np.zeros(1, dtype=np.int32)
+        value = np.zeros(1, dtype=np.int32)
         null = np.zeros(1, dtype = np.int32)
 
         while True:
@@ -172,9 +181,10 @@ if __name__ == '__main__':
                 state = Cube(cube = cube_rep)
 
                 state = game.nextState(state, play)
-                winner[0] = mcts.simulate(seed_state = state, timeout = args.simulation_time)
+                winner[0], value[0] = mcts.simulate(seed_state = state, timeout = args.simulation_time)
 
                 comm.Reduce([winner, MPI.INT], [null, MPI.INT], op=MPI.SUM, root = 0)
+                comm.Reduce([value, MPI.INT], [null, MPI.INT], op=MPI.MAX, root = 0)
 
 
 

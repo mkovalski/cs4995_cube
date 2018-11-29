@@ -34,6 +34,7 @@ class MonteCarlo:
     # Exploration parameter
     MonteCarloNode.c = exploration
     MonteCarloNode.v = virt_loss
+    MonteCarloNode.network = self.network
 
     self.UCB1ExploreParam = UCB1ExploreParam
 
@@ -52,7 +53,6 @@ class MonteCarlo:
     if not state.hash() in self.nodes:
       unexpandedPlays = self.game.legalPlays(state)
       node = MonteCarloNode(None, None, state, unexpandedPlays)
-      null, node.p_s = self.network.evaluate(node.state.cube.reshape(1, -1))
       self.nodes[state.hash()] = node
   
   
@@ -70,6 +70,7 @@ class MonteCarlo:
     draws = 0
     totalSims = 0
     
+    #pdb.set_trace()
     start = time.time()
     end = start + overall_timeout
 
@@ -77,12 +78,14 @@ class MonteCarlo:
 
       node = self.select(state)
       winner = self.game.winner(node.state)
+      values, null = self.network.evaluate(state.cube.reshape(1, -1))
+      value = values[0]
 
       if node.isLeaf() == False and winner == False:
         node = self.expand(node)
-        winner = self.simulate(node = node, timeout = simulation_timeout)
+        winner, value = self.simulate(node = node, timeout = simulation_timeout)
       
-      self.backpropagate(node, winner)
+      self.backpropagate(node, winner, value)
 
       if winner == 0:
         draws+=1
@@ -132,13 +135,9 @@ class MonteCarlo:
           maxx = ratio
 
     if maxx == 0:
+      print("Guessing")
       maxx = -np.Infinity
-      bestPlay = 0 
-      for play in allPlays:
-        childNode = node.childNode(play)
-        if childNode.value > maxx:
-          bestPlay = play
-          maxx = childNode.value 
+      bestPlay = np.argmax(node.p_s)
 
     return bestPlay
   
@@ -157,7 +156,8 @@ class MonteCarlo:
       bestUCB1 = -np.Infinity
       for play in plays:
         childUCB1 = node.childNode(play).getUCB1(self.UCB1ExploreParam)
-        null, childUCB1 = node.childNode(play).policy()
+        values, action = node.childNode(play).policy()
+        childUCB1 = values[action]
 
         #pdb.set_trace()
         if childUCB1 > bestUCB1:
@@ -177,17 +177,21 @@ class MonteCarlo:
    * @return {MonteCarloNode} The new expanded child node.
   """
   def expand(self, node):
-    node.value, policy = self.network.evaluate(node.state.cube.reshape(1, -1))
-
-    policy= policy[0]
     plays = node.unexpandedPlays()
+
+
+    null, policy= self.network.evaluate(node.state.cube.reshape(1, -1))
+    policy= policy[0]
 
     reweighted_policy = []
     for p in plays: 
-      reweighted_policy.append(policy[p[0]]*(random.random()*.5))
+        reweighted_policy.append(policy[p[0]]*(random.random()))
+
     index = np.argmax(reweighted_policy)
 
-    #index = math.floor(random.random() * len(plays))
+    # if random.random() > .5:
+    #   index = math.floor(random.random() * len(plays))
+
     play = plays[index][0]
 
     childState = self.game.nextState(node.state, play)
@@ -214,11 +218,13 @@ class MonteCarlo:
       raise Exception("node and seed_state cannot both be None in simulation")
 
     winner = self.game.winner(state)
+    value, null = self.network.evaluate(state.cube.reshape(1, -1))
+    value = value[0]
     end = time.time()+timeout
 
     if self.parallel and self.comm.Get_rank() == 0:
-      if winner:
-        return winner
+      # if winner:
+      #   return winner, self.network.evaluate(state.cube.reshape(1, -1))
 
       plays = self.game.legalPlays(state)
       shuffle(plays)
@@ -236,11 +242,16 @@ class MonteCarlo:
       winners = np.zeros(1, dtype = np.int32)
       self.comm.Reduce([winner, MPI.INT], [winners, MPI.INT], op=MPI.SUM, root = 0)
 
+      value = np.zeros(1, dtype=np.int32)
+      value[0] = -2147483648
+      values = np.zeros(1, dtype = np.int32)
+      self.comm.Reduce([value, MPI.INT], [values, MPI.INT], op=MPI.MAX, root = 0)
+
       if winners > 0:
         print("!!!", winners)
-        return 1
+        return 1, values[0]
       else: 
-        return 0
+        return 0, values[0]
 
     else:
       while winner == False and time.time()< end:
@@ -248,9 +259,15 @@ class MonteCarlo:
         play = plays[math.floor(random.random() * len(plays))]
         state = self.game.nextState(state, play)
         winner = self.game.winner(state)
-    
 
-    return winner
+        value, null= self.network.evaluate(state.cube.reshape(1, -1))
+        value = value[0]
+
+        if winner > 0:
+          print("!!!", winner)
+     
+      #pdb.set_trace()
+      return winner, value
   
 
   """
@@ -259,8 +276,8 @@ class MonteCarlo:
    * @param {MonteCarloNode} node - The node to backpropagate from. Typically leaf.
    * @param {number} winner - The winner to propagate.
   """
-  def backpropagate(self, node, winner) :
-    pdb.set_trace()
+  def backpropagate(self, node, winner, value) :
+    #pdb.set_trace()
 
     while not node == None:
       node.n_plays += 1
@@ -269,7 +286,7 @@ class MonteCarlo:
         node.n_wins += 1
 
       action = np.argmax(node.p_s)
-      node.w_s[action] = np.max([node.value, node.w_s[action]])
+      node.w_s[action] = np.max([value, node.w_s[action]])
       node.n_s[action] += 1
       node.l_s[action] -= MonteCarloNode.v
       
