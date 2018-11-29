@@ -28,6 +28,8 @@ class MonteCarloNode :
     # The current virtual loss for action a from state s 
     self.l_s = np.zeros(num_actions)
 
+    self.value = 0
+    self.p_s = 0
 
     self.play = play
     self.state = state
@@ -144,5 +146,5 @@ class MonteCarloNode :
 
   def policy(self):
     value = self.UCT() + self.QCT()
-    policy = np.argmax(value)
-    return policy, value[policy]
+    action = np.argmax(value)
+    return value, action
