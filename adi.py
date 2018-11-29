@@ -93,11 +93,6 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
                 all_values[(l*K) + k, :] = vals[idx]
                 all_policies[(l*K) + k, :] = actions[idx, :]
                 all_states[(l*K) + k, :] = copy.copy(cube.cube).flatten()
-                
-                if not batch:
-                    cost = network.train(all_states[n, :].reshape(1, -1), 
-                        all_policies[n, :].reshape(1, -1), 
-                        all_values[n, :].reshape(1, -1))
 
                 # Try some different stuff out
                 # Don't move the cube back to a position that it was just in, need
@@ -134,6 +129,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
                 else:
                     w += 1
                 '''
+
                 w += 1
 
                 # Queueing
@@ -172,7 +168,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
     parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials")
-    parser.add_argument("-L", type = int, default = 10, help = "How many moves to make from state to state")
+    parser.add_argument("-L", type = int, default = 40, help = "How many moves to make from state to state")
     parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make from state to state")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
     parser.add_argument('--batch', action='store_true', help="Train the neural network in batches")
