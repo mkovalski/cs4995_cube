@@ -16,8 +16,8 @@ def move(cube, depth):
         true_values = np.zeros((12, 1))
         
 
-def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, batch = False,
-        search_depth = 1, output_dir = 'output'):
+def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
+        search_depth = 1, output_dir = 'output', same_batch = False):
 
     '''Function for Autodidactic Iteration
     Start at the initial state each run, take N random actions sequentially,
@@ -35,6 +35,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
     # Start with moves very close to the cube
     # after some time, increase
     K = 1
+    orig_L = copy.copy(L)
 
     # Set up the neural network
     network = ADINetwork(output_dir)
@@ -56,6 +57,8 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
     
     local_steps = 0
     step_idx = 0
+    
+    print("Using batch size of {}".format(L))
 
     for m in range(1, M+1):
         N = K * L
@@ -141,9 +144,8 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
 
                 weight_vector[(l*K) + k] = 1 / w
         
-        if batch:
-            cost = network.train(all_states, all_policies, all_values,
-                                 weight = weight_vector)
+        cost = network.train(all_states, all_policies, all_values,
+                             weight = weight_vector)
 
         print("Iteration {} complete".format(m))
         print("- Latest cost: {}".format(cost))
@@ -163,18 +165,24 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
             local_steps = 0
             K += 1
             print("-- Increasing K to {}".format(K))
+            if same_batch:
+                L = orig_L // K
+                if L == 0:
+                    L = 1
+                print("L is now {}".format(L))
+
             
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
     parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials")
-    parser.add_argument("-L", type = int, default = 40, help = "How many moves to make from state to state")
+    parser.add_argument("-L", type = int, default = 50, help = "How many moves to make from state to state")
     parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make from state to state")
+    parser.add_argument("--same_batch", action = 'store_true', help="Rescale batch as K grows")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
-    parser.add_argument('--batch', action='store_true', help="Train the neural network in batches")
     parser.add_argument('-o', '--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
 
     args = parser.parse_args()
     adi(M = args.M, L = args.L, steps_per_iter = args.steps_per_iter,
-        allow_move_back = args.allow_move_back, batch = args.batch,
-        output_dir = args.output_dir)
+        allow_move_back = args.allow_move_back,
+        output_dir = args.output_dir, same_batch = args.same_batch)
