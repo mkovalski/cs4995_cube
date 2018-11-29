@@ -57,7 +57,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False, bat
     local_steps = 0
     step_idx = 0
 
-    for m in range(M):
+    for m in range(1, M+1):
         N = K * L
 
         all_values = np.zeros((N, 1))
