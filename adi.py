@@ -148,7 +148,9 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
                              weight = weight_vector)
 
         print("Iteration {} complete".format(m))
-        print("- Latest cost: {}".format(cost))
+
+        if m % 100:
+            print("- Latest cost: {}".format(cost))
         
         # Log stuff
         if m % 10:

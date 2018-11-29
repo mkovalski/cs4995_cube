@@ -6,11 +6,12 @@ import os
 import pdb
 
 class ADINetwork(object):
-    def __init__(self, output_dir):
+    def __init__(self, output_dir, use_gpu = True):
         self.activation = tf.nn.elu
         self.sess = None
         self.save_dir = output_dir
         self.checkpoint_dir = os.path.join(self.save_dir, 'checkpoints')
+        self.use_gpu = use_gpu
 
         if self.save_dir[-1] != '/':
             self.save_dir = self.save_dir + '/'
@@ -73,9 +74,12 @@ class ADINetwork(object):
         self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
 
         self.loss = tf.train.RMSPropOptimizer(lr).minimize(self.cost)
+        
+        if not self.use_gpu:
+            os.environ["CUDA_VISIBLE_DEVICES"]=""
 
         self.sess = tf.Session()
-        
+         
         self.saver = tf.train.Saver()
         
         if os.path.isdir(self.save_dir):
