@@ -52,7 +52,7 @@ class MonteCarlo:
     if not state.hash() in self.nodes:
       unexpandedPlays = self.game.legalPlays(state)
       node = MonteCarloNode(None, None, state, unexpandedPlays)
-      _, node.p_s = self.network.evaluate(node.state.cube.reshape(1, -1))
+      null, node.p_s = self.network.evaluate(node.state.cube.reshape(1, -1))
       self.nodes[state.hash()] = node
   
   
@@ -160,7 +160,6 @@ class MonteCarlo:
         null, childUCB1 = node.childNode(play).policy()
 
         #pdb.set_trace()
-        print(childUCB1, null )
         if childUCB1 > bestUCB1:
           bestPlay = play
           bestUCB1 = childUCB1
@@ -178,11 +177,18 @@ class MonteCarlo:
    * @return {MonteCarloNode} The new expanded child node.
   """
   def expand(self, node):
-    node.value, _ = self.network.evaluate(node.state.cube.reshape(1, -1))
+    node.value, policy = self.network.evaluate(node.state.cube.reshape(1, -1))
 
+    policy= policy[0]
     plays = node.unexpandedPlays()
-    index = math.floor(random.random() * len(plays))
-    play = plays[index]
+
+    reweighted_policy = []
+    for p in plays: 
+      reweighted_policy.append(policy[p[0]]*(random.random()*.5))
+    index = np.argmax(reweighted_policy)
+
+    #index = math.floor(random.random() * len(plays))
+    play = plays[index][0]
 
     childState = self.game.nextState(node.state, play)
     childUnexpandedPlays = self.game.legalPlays(childState)
@@ -239,13 +245,7 @@ class MonteCarlo:
     else:
       while winner == False and time.time()< end:
         plays = self.game.legalPlays(state)
-
-        value, _ = self.network.evaluate(state.cube.reshape(1, -1))
-        for i, v in enumerate(value): 
-          value[i] = v*random.random()
-        play = np.argmax(value)
-
-#        play = plays[math.floor(random.random() * len(plays))]
+        play = plays[math.floor(random.random() * len(plays))]
         state = self.game.nextState(state, play)
         winner = self.game.winner(state)
     
@@ -260,7 +260,7 @@ class MonteCarlo:
    * @param {number} winner - The winner to propagate.
   """
   def backpropagate(self, node, winner) :
-    # pdb.set_trace()
+    pdb.set_trace()
 
     while not node == None:
       node.n_plays += 1
@@ -268,7 +268,7 @@ class MonteCarlo:
       if winner == 1 :
         node.n_wins += 1
 
-      action = np.argmax(node.value)
+      action = np.argmax(node.p_s)
       node.w_s[action] = np.max([node.value, node.w_s[action]])
       node.n_s[action] += 1
       node.l_s[action] -= MonteCarloNode.v
