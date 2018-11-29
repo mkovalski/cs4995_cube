@@ -30,14 +30,14 @@ class ADINetwork(object):
         d1 = tf.layers.dense(d0, 2048, activation = self.activation)
 
         p1 = tf.layers.dense(d1, 512, activation = self.activation)
-        p_out = tf.layers.dense(p1, 12, activation = self.activation)
+        p_out = tf.layers.dense(p1, 12, activation = None)
 
         v1 = tf.layers.dense(d1, 512, activation = self.activation)
 
         # Added a sigmoid activation, although the paper doesn't
         # use an activation function here. Since sigmoid spans 0 to 1
         # and the true reward also does, I do this.
-        v_out = tf.layers.dense(v1, 1, activation = tf.sigmoid)
+        v_out = tf.layers.dense(v1, 1, activation = None)
 
         return (v_out, p_out)
     
@@ -48,7 +48,7 @@ class ADINetwork(object):
         
         '''
 
-        lr = 1e-5
+        lr = 1e-6
 
         self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
