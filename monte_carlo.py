@@ -7,6 +7,8 @@ import numpy as np
 from random import shuffle 
 from mpi4py import MPI
 
+from network import ADINetwork
+
 """
  * Class representing the Monte Carlo search tree.
  * Handles the four MCTS steps: selection, expansion, simulation, backpropagation.
@@ -23,8 +25,10 @@ class MonteCarlo:
     self.game = game
     self.nodes = {}
     
-    # self.network = ADINetwork(output_dir = checkpoint)
-    # self.network.setup()
+    if checkpoint is None:
+      raise Exception("No checkpoint provided")
+    self.network = ADINetwork(output_dir = checkpoint)
+    self.network.setup()
   
     # Hyperparameters
     # Exploration parameter
@@ -45,10 +49,10 @@ class MonteCarlo:
    * @param {State} state - The state to make a dangling node for; its parent is set to null.
   """
   def makeNode(self, state) :
-
     if not state.hash() in self.nodes:
       unexpandedPlays = self.game.legalPlays(state)
       node = MonteCarloNode(None, None, state, unexpandedPlays)
+      _, node.p_s = self.network.evaluate(node.state.cube.reshape(1, -1))
       self.nodes[state.hash()] = node
   
   
@@ -127,7 +131,9 @@ class MonteCarlo:
           bestPlay = play
           maxx = ratio
 
-    else:
+    if maxx == 0:
+      maxx = -np.Infinity
+      bestPlay = 0 
       for play in allPlays:
         childNode = node.childNode(play)
         if childNode.value > maxx:
@@ -151,7 +157,10 @@ class MonteCarlo:
       bestUCB1 = -np.Infinity
       for play in plays:
         childUCB1 = node.childNode(play).getUCB1(self.UCB1ExploreParam)
-        #_, childUCB1 = node.childNode(play).policy()
+        null, childUCB1 = node.childNode(play).policy()
+
+        #pdb.set_trace()
+        print(childUCB1, null )
         if childUCB1 > bestUCB1:
           bestPlay = play
           bestUCB1 = childUCB1
@@ -169,6 +178,8 @@ class MonteCarlo:
    * @return {MonteCarloNode} The new expanded child node.
   """
   def expand(self, node):
+    node.value, _ = self.network.evaluate(node.state.cube.reshape(1, -1))
+
     plays = node.unexpandedPlays()
     index = math.floor(random.random() * len(plays))
     play = plays[index]
@@ -210,7 +221,7 @@ class MonteCarlo:
 
       play = np.zeros(1, dtype=np.int32)
       for r in range(1, mpi_size):
-        play[0] = plays[r] if len(plays) >= mpi_size else plays[r%len(plays)]
+        play[0] = plays[(r-1)%len(plays)]
         self.comm.Send([play, MPI.INT] , dest=r)
 
       self.comm.Bcast(node.state.cube)
@@ -228,7 +239,13 @@ class MonteCarlo:
     else:
       while winner == False and time.time()< end:
         plays = self.game.legalPlays(state)
-        play = plays[math.floor(random.random() * len(plays))]
+
+        value, _ = self.network.evaluate(state.cube.reshape(1, -1))
+        for i, v in enumerate(value): 
+          value[i] = v*random.random()
+        play = np.argmax(value)
+
+#        play = plays[math.floor(random.random() * len(plays))]
         state = self.game.nextState(state, play)
         winner = self.game.winner(state)
     
@@ -251,9 +268,10 @@ class MonteCarlo:
       if winner == 1 :
         node.n_wins += 1
 
-      # node.w_s[action] = np.max([value, node.w_s[action]])
-      # node.n_s[action] += 1
-      # node.l_s[action] -= self.v
+      action = np.argmax(node.value)
+      node.w_s[action] = np.max([node.value, node.w_s[action]])
+      node.n_s[action] += 1
+      node.l_s[action] -= MonteCarloNode.v
       
       node = node.parent
     

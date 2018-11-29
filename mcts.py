@@ -89,7 +89,7 @@ if __name__ == '__main__':
     mpi_size = comm.Get_size()
 
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
-    #parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
+    parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
     parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
     parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
     parser.add_argument("-t", "--simulation-time", default=.5, type=float, help="time limit per simulation")
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     game = Game_Rubiks()
-    mcts = MonteCarlo(game, comm = comm)
+    mcts = MonteCarlo(game, comm = comm, checkpoint = args.checkpoint)
 
     if mpi_rank == 0:
         parallel = True if mpi_size > 1 else False
