@@ -20,16 +20,24 @@ if __name__ == '__main__':
     # Shuffle a cube a bunch
     cube = Cube()
     actions = np.eye(12)
-
-    for i in range(3):
-        cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
-
-    print("Starting search")
     
-    while True:
-        v, p = network.evaluate(cube.cube.reshape(1, -1))
-        print(np.argmax(p))
-        solved =  cube.move(p)
-        if solved == 1:
-            break
+    total = 1000
+    c = 0
+    
+    moves = 3
+    for i in range(total):
+        cube.reset()
 
+        while cube.is_solved():
+            cube.reset()
+            for i in range(moves):
+                cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
+        
+        for i in range(moves*2):
+            v, p = network.evaluate(cube.cube.reshape(1, -1))
+            solved =  cube.move(p)
+            if solved == 1:
+                c += 1
+                break
+
+    print(c/float(total))

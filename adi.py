@@ -7,6 +7,7 @@ from rubiks import Cube
 import argparse
 import copy
 import pdb
+import sys
 
 def move(cube, depth):
     if depth == 0:
@@ -16,7 +17,7 @@ def move(cube, depth):
         true_values = np.zeros((12, 1))
         
 
-def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
+def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, allow_move_back = False,
         search_depth = 1, output_dir = 'output', same_batch = False):
 
     '''Function for Autodidactic Iteration
@@ -27,10 +28,6 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
     
     # Setup cube
     cube = Cube()
-    
-    # The maximum that the batch size can be
-    # since it won't fit into gpu memory otherwise
-    max_batch = 400
     
     # Start with moves very close to the cube
     # after some time, increase
@@ -46,7 +43,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
 
     # Number of times to run each of the simulations at each
     # value of K
-    steps = np.arange(1, 31) * steps_per_iter
+    steps = np.arange(1, max_K+1) * steps_per_iter
 
     # Run a ton at the end
     add_steps = (M - np.sum(steps))
@@ -73,29 +70,9 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
             cube.reset()
 
             last_moves = np.asarray([]).astype(int)
-            w = 0
+            w = 1
 
             for k in range(K):
-
-                true_values = np.zeros((actions.shape[0], 1))
-
-                cubes = np.zeros((12, 24 * 20))
-                
-                # Iterate over all the actions from a given state
-                # Store the true reward and the states
-                for mv in range(actions.shape[0]):
-                    tmp_cube = copy.deepcopy(cube)
-                    true_values[mv, :] = tmp_cube.move(actions[mv, :])
-                    cubes[mv, :] = tmp_cube.cube.reshape(1, -1)
-                    del tmp_cube
-                
-                vals, _ = network.evaluate(cubes)
-                vals += true_values
-                
-                idx = np.argmax(vals)
-                all_values[(l*K) + k, :] = vals[idx]
-                all_policies[(l*K) + k, :] = actions[idx, :]
-                all_states[(l*K) + k, :] = copy.copy(cube.cube).flatten()
 
                 # Try some different stuff out
                 # Don't move the cube back to a position that it was just in, need
@@ -118,42 +95,55 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
 
                 action = actions[np.random.choice(choices), :]
                 max_action = np.argmax(action)
-
-                # Adjust weight vector here
-                '''
-                if last_moves.size > 0:
-                    ind = 1 if last_moves[0] % 2 == 0 else -1
-                    if last_moves[0] + ind == max_action:
-                        w -= 1
-                    elif last_moves.size >= 2 and np.all(last_moves[-2:] == max_action):
-                        w -= 1
-                    else:
-                        w += 1
-                else:
-                    w += 1
-                '''
-
-                w += 1
-
+                
+                help_idx = max_action - 1 if max_action%2 ==1 else max_action + 1
+                
                 # Queueing
                 last_moves = np.insert(last_moves, 0, max_action)
 
                 if last_moves.size > 3:
                     last_moves = np.delete(last_moves, -1)
+
                 cube.move(action)
 
                 weight_vector[(l*K) + k] = 1 / w
+                
+                w += 1
+
+                true_values = np.zeros((actions.shape[0], 1))
+
+                cubes = np.zeros((12, 24 * 20))
+                
+                # Iterate over all the actions from a given state
+                # Store the true reward and the states
+                for mv in range(actions.shape[0]):
+                    tmp_cube = copy.deepcopy(cube)
+                    true_values[mv, :] = tmp_cube.move(actions[mv, :])
+                    cubes[mv, :] = tmp_cube.cube.reshape(1, -1)
+                    del tmp_cube
+                
+                vals, _ = network.evaluate(cubes)
+                vals += true_values
+                #vals[help_idx] += (1/w+1)
+                vals = np.clip(vals, -1, 1)
+
+                idx = np.argmax(vals)
+                all_values[(l*K) + k, :] = vals[idx]
+                all_policies[(l*K) + k, :] = actions[idx, :]
+                all_states[(l*K) + k, :] = copy.copy(cube.cube).flatten()
         
         cost = network.train(all_states, all_policies, all_values,
                              weight = weight_vector)
 
-        print("Iteration {} complete".format(m))
+        if m % 10 == 0:
+            print("Iteration {} complete".format(m))
 
-        if m % 100:
+        if m % 10 == 0:
             print("- Latest cost: {}".format(cost))
-        
+            sys.stdout.flush()
+
         # Log stuff
-        if m % 10:
+        if m % 10 == 0:
             network.log()
         
         # Checkpoint
@@ -177,14 +167,16 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
-    parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials")
-    parser.add_argument("-L", type = int, default = 50, help = "How many moves to make from state to state")
-    parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make from state to state")
+    parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials overall")
+    parser.add_argument("-K", type = int, default = 30, help = "Maximum moves away it will move from solved state")
+    parser.add_argument("-L", type = int, default = 50, help = "Number of times to run 1:K before sending as batch to NN. K * L gives batch size unless --same_batch is specified as argument")
+    parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make at each K. Linear function, so number moves at each k is K * steps_per_iter")
     parser.add_argument("--same_batch", action = 'store_true', help="Rescale batch as K grows")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
     parser.add_argument('-o', '--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
 
     args = parser.parse_args()
-    adi(M = args.M, L = args.L, steps_per_iter = args.steps_per_iter,
+
+    adi(M = args.M, max_K = args.K, L = args.L, steps_per_iter = args.steps_per_iter,
         allow_move_back = args.allow_move_back,
         output_dir = args.output_dir, same_batch = args.same_batch)
