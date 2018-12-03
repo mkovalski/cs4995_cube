@@ -6,12 +6,19 @@ import os
 import pdb
 
 class ADINetwork(object):
+<<<<<<< HEAD
     def __init__(self, output_dir, use_gpu = True):
+=======
+    def __init__(self, output_dir):
+>>>>>>> d3ef3010e26a24656eb794e11b47d0dead1d9d57
         self.activation = tf.nn.elu
         self.sess = None
         self.save_dir = output_dir
         self.checkpoint_dir = os.path.join(self.save_dir, 'checkpoints')
+<<<<<<< HEAD
         self.use_gpu = use_gpu
+=======
+>>>>>>> d3ef3010e26a24656eb794e11b47d0dead1d9d57
 
         if self.save_dir[-1] != '/':
             self.save_dir = self.save_dir + '/'
@@ -42,7 +49,11 @@ class ADINetwork(object):
 
         return (v_out, p_out)
     
+<<<<<<< HEAD
     def setup(self, cube_size):
+=======
+    def setup(self):
+>>>>>>> d3ef3010e26a24656eb794e11b47d0dead1d9d57
         '''
         To use weighted values, provide a fixed batch size since the 
         weight vector will also be fixed
@@ -51,7 +62,11 @@ class ADINetwork(object):
 
         lr = 1e-6
 
+<<<<<<< HEAD
         self.x = tf.placeholder(shape = (None, cube_size), dtype = tf.float32)
+=======
+        self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
+>>>>>>> d3ef3010e26a24656eb794e11b47d0dead1d9d57
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
         self.y_policy = tf.placeholder(shape = (None, 12), dtype = tf.float32)
         
@@ -73,6 +88,7 @@ class ADINetwork(object):
 
         self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
 
+<<<<<<< HEAD
         self.loss = tf.train.AdamOptimizer(lr).minimize(self.cost)
         
         if not self.use_gpu:
@@ -80,6 +96,12 @@ class ADINetwork(object):
 
         self.sess = tf.Session()
          
+=======
+        self.loss = tf.train.RMSPropOptimizer(lr).minimize(self.cost)
+
+        self.sess = tf.Session()
+        
+>>>>>>> d3ef3010e26a24656eb794e11b47d0dead1d9d57
         self.saver = tf.train.Saver()
         
         if os.path.isdir(self.save_dir):
