@@ -73,7 +73,7 @@ class ADINetwork(object):
 
         self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
 
-        self.loss = tf.train.AdamOptimizer(lr).minimize(self.cost)
+        self.loss = tf.train.RMSPropOptimizer(lr).minimize(self.cost)
         
         if not self.use_gpu:
             os.environ["CUDA_VISIBLE_DEVICES"]=""
