@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 from network import ADINetwork
-from rubiks import Cube
+from rubiks import Cube3x3
 import argparse
 import copy
 import pdb
@@ -29,7 +29,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
     '''
     
     # Setup cube
-    cube = Cube()
+    cube = Cube3x3()
     
     # Start with moves very close to the cube
     # after some time, increase
