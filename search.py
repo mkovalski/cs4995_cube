@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-from rubiks import Cube3x3
+from rubiks import Cube2x2, Cube3x3
 from network import ADINetwork
 import tensorflow as tf
 import copy
@@ -12,19 +12,25 @@ import sys
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Solve a single puzzle using MCTS")
     parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
+    parser.add_argument("-d", "--dims", choices = [2, 3], type = int, required = True, help = "dimensions of cube")
+    parser.add_argument("-m", "--moves", type = int, default = 3)
 
     args = parser.parse_args()
     
-    network = ADINetwork(output_dir = args.checkpoint, use_gpu = False)
-    network.setup()
     # Shuffle a cube a bunch
-    cube = Cube3x3()
+    if args.dims == 2:
+        cube = Cube2x2()
+    else:
+        cube = Cube3x3()
     actions = np.eye(12)
+    
+    network = ADINetwork(output_dir = args.checkpoint, use_gpu = False)
+    network.setup(cube_size = cube.cube.size)
     
     total = 1000
     c = 0
     
-    moves = 3
+    moves = args.moves
     for i in range(total):
         cube.reset()
 

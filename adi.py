@@ -70,8 +70,6 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
         all_states = np.zeros((N, cube.cube.size))
         
         weight_vector = np.ones(N)
-
-        gammas = np.zeros((N*12, 1))
                 
         cubes = np.zeros((N * 12, cube.cube.size))
         true_values = np.zeros((N * 12, 1))
@@ -128,7 +126,6 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
                     tmp_cube = copy.deepcopy(cube)
                     true_values[idx, :] = tmp_cube.move(actions[mv, :])
                     cubes[idx, :] = tmp_cube.cube.reshape(1, -1)
-                    gammas[idx] = gamma**(K - k)
                     del tmp_cube
                 
                 all_states[(l*K) + k, :] = np.copy(cube.cube).flatten()
@@ -137,9 +134,10 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
         vals *= gamma
         vals += true_values
 
-        #vals[help_idx] += (1/w+1)
-#        vals = np.clip(vals, -1, 1)
-        
+        # Ignore the discount factor when we know we reached a terminal state
+        # We just want 1 here
+        vals[np.where(true_values == 1)[0]] = 1
+
         vals = vals.reshape(-1, 12)
         idx = np.argmax(vals, axis = 1)
         all_values[:, :] = np.max(vals, axis = 1).reshape(-1, 1)
