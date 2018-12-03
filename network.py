@@ -72,8 +72,15 @@ class ADINetwork(object):
         self.v_cost = tf.losses.mean_squared_error(self.y_value, self.v_out, weights = tf.reshape(self.weight, (-1, 1)))
 
         self.cost = tf.reduce_sum(self.v_cost + self.p_cost)
+        
+        self.global_step = tf.Variable(0, trainable = False)
+        
+        # Exponential decay learning rate
+        self.learning_rate = tf.train.exponential_decay(lr, self.global_step, 2000000, 
+                0.95, staircase = True)
 
-        self.loss = tf.train.RMSPropOptimizer(lr).minimize(self.cost)
+        self.loss = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.cost, 
+                                            global_step = self.global_step)
         
         if not self.use_gpu:
             os.environ["CUDA_VISIBLE_DEVICES"]=""
@@ -110,6 +117,9 @@ class ADINetwork(object):
                                              self.y_value: values,
                                              self.y_policy: actions,
                                              self.weight: weight})
+
+        self.sess.run(tf.assign_add(self.global_step, 1))
+        print(self.sess.run(self.learning_rate))
         '''        
         if self.local_step % 1000 == 0 and self.local_step != 0:
 
