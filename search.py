@@ -35,9 +35,9 @@ if __name__ == '__main__':
         
         for i in range(moves*2):
             v, p = network.evaluate(cube.cube.reshape(1, -1))
+            #print(np.argmax(p))
             solved =  cube.move(p)
             if solved == 1:
                 c += 1
                 break
-
     print(c/float(total))
