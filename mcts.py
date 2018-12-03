@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-from rubiks import Cube
+from rubiks import Cube3x3 as Cube
 from network import ADINetwork
 import tensorflow as tf
 import copy
@@ -78,7 +78,7 @@ class Node(object):
 
 class MCTS(object):
     def __init__(self, checkpoint, exploration = 2.0, virt_loss = 2.0):
-        self.network = ADINetwork(output_dir = checkpoint)
+        self.network = ADINetwork(output_dir = checkpoint, use_gpu = False)
         self.network.setup()
         self.max_steps = 200
         

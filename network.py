@@ -42,7 +42,7 @@ class ADINetwork(object):
 
         return (v_out, p_out)
     
-    def setup(self):
+    def setup(self, cube_size):
         '''
         To use weighted values, provide a fixed batch size since the 
         weight vector will also be fixed
@@ -51,7 +51,7 @@ class ADINetwork(object):
 
         lr = 1e-6
 
-        self.x = tf.placeholder(shape = (None, 20 * 24), dtype = tf.float32)
+        self.x = tf.placeholder(shape = (None, cube_size), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
         self.y_policy = tf.placeholder(shape = (None, 12), dtype = tf.float32)
         

@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 from network import ADINetwork
-from rubiks import Cube3x3
+from rubiks import Cube2x2, Cube3x3
 import argparse
 import copy
 import pdb
@@ -20,7 +20,7 @@ def move(cube, depth):
 
 def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5, 
         allow_move_back = False, search_depth = 1, output_dir = 'output', 
-        same_batch = False, use_cpu = False):
+        same_batch = False, use_cpu = False, dims = 3):
 
     '''Function for Autodidactic Iteration
     Start at the initial state each run, take N random actions sequentially,
@@ -29,7 +29,10 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
     '''
     
     # Setup cube
-    cube = Cube3x3()
+    if dims == 2:
+        cube = Cube2x2()
+    else:
+        cube = Cube3x3()
     
     # Start with moves very close to the cube
     # after some time, increase
@@ -38,7 +41,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
 
     # Set up the neural network
     network = ADINetwork(output_dir, use_gpu = not use_cpu)
-    network.setup()
+    network.setup(cube_size = cube.cube.size)
     
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
@@ -64,13 +67,13 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
 
         all_values = np.zeros((N, 1))
         all_policies = np.zeros((N, 12))
-        all_states = np.zeros((N, 24 * 20))
+        all_states = np.zeros((N, cube.cube.size))
         
         weight_vector = np.ones(N)
 
         gammas = np.zeros((N*12, 1))
                 
-        cubes = np.zeros((N * 12, 24 * 20))
+        cubes = np.zeros((N * 12, cube.cube.size))
         true_values = np.zeros((N * 12, 1))
         
         for l in range(L):
@@ -186,10 +189,11 @@ if __name__ == '__main__':
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
     parser.add_argument('-o', '--output_dir', type = str, default = 'output', help="Where to save tensorflow checkpoints to")
     parser.add_argument('--use_cpu', action = 'store_true')
+    parser.add_argument('-d', '--dims', type = int, choices=[2, 3], help = 'Cube dimensions')
 
     args = parser.parse_args()
 
     adi(M = args.M, max_K = args.K, L = args.L, steps_per_iter = args.steps_per_iter,
         gamma = args.gamma, allow_move_back = args.allow_move_back,
         output_dir = args.output_dir, same_batch = args.same_batch,
-        use_cpu = args.use_cpu)
+        use_cpu = args.use_cpu, dims = args.dims)
