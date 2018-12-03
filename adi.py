@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 from network import ADINetwork
-from rubiks import Cube
+from rubiks import Cube3x3
 import argparse
 import copy
 import pdb
@@ -26,7 +26,7 @@ def adi(M = 2000000, L = 10, steps_per_iter = 2000, allow_move_back = False,
     '''
     
     # Setup cube
-    cube = Cube()
+    cube = Cube3x3()
     
     # The maximum that the batch size can be
     # since it won't fit into gpu memory otherwise
