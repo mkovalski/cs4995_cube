@@ -54,7 +54,10 @@ class Cube(ABC):
     def move(self, move_prob):
         move = np.argmax(move_prob)
         self.rotate(move)
-        return int(self.is_solved())
+        if self.is_solved():
+            return 1
+        else:
+            return -1
         
     #Swap positions of two corners/edge orientations
     def swap(self, a, b):
