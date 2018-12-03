@@ -78,7 +78,7 @@ class ADINetwork(object):
 
         # Exponential decay learning rate
         self.learning_rate = tf.train.exponential_decay(lr, self.global_step, self.lr_steps, 
-                0.9, staircase = False)
+                0.90, staircase = False)
 
         self.loss = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.cost, 
                                             global_step = self.global_step)
