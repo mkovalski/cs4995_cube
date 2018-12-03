@@ -61,7 +61,6 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
     step_idx = 0
     
     print("Using batch size of {}".format(L))
-<<<<<<< HEAD
     
     for m in range(1, M+1):
         N = K * L
