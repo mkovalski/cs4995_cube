@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-from rubiks import Cube
+from rubiks import Cube3x3
 from network import ADINetwork
 import tensorflow as tf
 import copy
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--checkpoint", required=True, help="tf checkpoint for network")
     parser.add_argument("-e", "--exploration", default = 0.01, type = float, help = "exploration hyperparameter")
     parser.add_argument("-v", "--v_loss", default = 0.01, type = float, help = "virtual loss hyperparameter")
-    parser.add_argument("-t", "--simulation-time", default=.5, type=float, help="time limit per simulation")
+    parser.add_argument("-t", "--simulation-steps", default=20, type=int, help="step limit per simulation")
     parser.add_argument("-o", "--overall-time", default=0, type=float, help="time limit tree search")
     parser.add_argument("-s", "--shuffle", default=3, type=int, help="shuffles from the start state")
 
@@ -114,16 +114,13 @@ if __name__ == '__main__':
 
         while True: 
            # Shuffle cube
-            cube = Cube()
+            cube = Cube3x3()
             actions = np.eye(12)
 
             for i in range(args.shuffle):
                 cube.move(actions[np.random.choice(np.arange(0, actions.shape[0])), :])
             if not cube.is_solved():
                 break
-        
-        if args.overall_time < args.simulation_time:
-            args.overall_time = args.simulation_time + 1
 
 
         print(cube.history)
@@ -137,7 +134,7 @@ if __name__ == '__main__':
         while winner == False:
             while retry < 5:
                 print(i, retry)
-                stats = mcts.runSearch(state, overall_timeout=args.overall_time*(retry+1), simulation_timeout = args.simulation_time)
+                stats = mcts.runSearch(state, overall_timeout=args.overall_time*(retry+1), simulation_steps = args.simulation_steps+len(state.history))
                 play = mcts.bestPlay(state, policy="max")
                 if play >= 0:
                     break
@@ -154,7 +151,7 @@ if __name__ == '__main__':
             winner = game.winner(state)
             i += 1
 
-            if i % 5 ==0 :
+            if i % 10 ==0 :
                 pdb.set_trace()
 
         print("YOU WON", state.history)
@@ -166,6 +163,7 @@ if __name__ == '__main__':
     else:
         play = np.zeros(1, dtype=np.int32)
         cube_rep = np.zeros((20, 24), dtype=np.int32)
+        history_length = np.zeros(1, dtype= np.int32)
         winner = np.zeros(1, dtype=np.int32)
         value = np.zeros(1, dtype=np.int32)
         null = np.zeros(1, dtype = np.int32)
@@ -177,11 +175,14 @@ if __name__ == '__main__':
                 break
             else:
                 comm.Bcast(cube_rep, root=0)
+                comm.Bcast(history_length, root=0)
+                state_history = np.zeros((history_length), dtype=np.int32)
+                comm.Bcast(state_history, root=0)
 
-                state = Cube(cube = cube_rep)
+                state = Cube3x3(cube = cube_rep, history = list(state_history))
 
-                state = game.nextState(state, play)
-                winner[0], value[0] = mcts.simulate(seed_state = state, timeout = args.simulation_time)
+                state = game.nextState(state, play[0])
+                winner[0], value[0] = mcts.simulate(seed_state = state, max_steps = args.simulation_steps+len(state.history))
 
                 comm.Reduce([winner, MPI.INT], [null, MPI.INT], op=MPI.SUM, root = 0)
                 comm.Reduce([value, MPI.INT], [null, MPI.INT], op=MPI.MAX, root = 0)

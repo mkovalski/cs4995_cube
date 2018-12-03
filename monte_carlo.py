@@ -63,7 +63,7 @@ class MonteCarlo:
    * @param {number} timeout - The time to run the simulations for, in seconds.
    * @return {Object} Search statistics.
    """
-  def runSearch(self, state, overall_timeout = 7, simulation_timeout = .4) :
+  def runSearch(self, state, overall_timeout = 7, simulation_steps = 20) :
 
     self.makeNode(state)
 
@@ -83,7 +83,7 @@ class MonteCarlo:
 
       if node.isLeaf() == False and winner == False:
         node = self.expand(node)
-        winner, value = self.simulate(node = node, timeout = simulation_timeout)
+        winner, value = self.simulate(node = node, max_steps = simulation_steps)
       
       self.backpropagate(node, winner, value)
 
@@ -179,7 +179,6 @@ class MonteCarlo:
   def expand(self, node):
     plays = node.unexpandedPlays()
 
-
     null, policy= self.network.evaluate(node.state.cube.reshape(1, -1))
     policy= policy[0]
 
@@ -208,7 +207,7 @@ class MonteCarlo:
    * @param {MonteCarloNode} node - The node to simulate from.
    * @return {number} The winner of the terminal game state.
   """
-  def simulate(self, node = None, seed_state = None, timeout=1):
+  def simulate(self, node = None, seed_state = None, max_steps=20):
 
     if not node is None:
       state = node.state
@@ -220,7 +219,6 @@ class MonteCarlo:
     winner = self.game.winner(state)
     value, null = self.network.evaluate(state.cube.reshape(1, -1))
     value = value[0]
-    end = time.time()+timeout
 
     if self.parallel and self.comm.Get_rank() == 0:
       # if winner:
@@ -237,6 +235,10 @@ class MonteCarlo:
         self.comm.Send([play, MPI.INT] , dest=r)
 
       self.comm.Bcast(node.state.cube)
+      history_length = np.asarray([len(node.state.history)], dtype=np.int32)
+      self.comm.Bcast(history_length)
+      state_history = np.asarray(node.state.history, dtype=np.int32)
+      self.comm.Bcast(state_history)
 
       winner = np.zeros(1, dtype=np.int32)
       winners = np.zeros(1, dtype = np.int32)
@@ -247,14 +249,14 @@ class MonteCarlo:
       values = np.zeros(1, dtype = np.int32)
       self.comm.Reduce([value, MPI.INT], [values, MPI.INT], op=MPI.MAX, root = 0)
 
-      if winners > 0:
-        print("!!!", winners)
-        return 1, values[0]
+      if winners[0] > 0:
+        print("0: !!!", winners)
+        return winners[0], values[0]
       else: 
         return 0, values[0]
 
     else:
-      while winner == False and time.time()< end:
+      while winner == False and len(state.history) < max_steps:
         plays = self.game.legalPlays(state)
         play = plays[math.floor(random.random() * len(plays))]
         state = self.game.nextState(state, play)

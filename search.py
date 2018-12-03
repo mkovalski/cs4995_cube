@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-from rubiks import Cube
+from rubiks import Cube3x3
 from network import ADINetwork
 import tensorflow as tf
 import copy
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     network = ADINetwork(output_dir = args.checkpoint)
     network.setup()
     # Shuffle a cube a bunch
-    cube = Cube()
+    cube = Cube3x3()
     actions = np.eye(12)
 
     for i in range(1):
