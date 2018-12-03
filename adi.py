@@ -122,7 +122,6 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
                 # Store the true reward and the states
                 for mv in range(actions.shape[0]):
                     idx = (l * K * 12) + (k*12) + mv
-                    #print(idx)
                     tmp_cube = copy.deepcopy(cube)
                     true_values[idx, :] = tmp_cube.move(actions[mv, :])
                     cubes[idx, :] = tmp_cube.cube.reshape(1, -1)
@@ -173,6 +172,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
                 if L == 0:
                     L = 1
                 print("L is now {}".format(L))
+            network.update_lr_steps(steps[step_idx])
 
             
 

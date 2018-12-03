@@ -22,7 +22,6 @@ class ADINetwork(object):
         if not os.path.isdir(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
     
-        self.global_step = 0
         self.local_step = 0
 
     def inference(self, X):
@@ -75,9 +74,11 @@ class ADINetwork(object):
         
         self.global_step = tf.Variable(0, trainable = False)
         
+        self.lr_steps = tf.Variable(100, trainable = False)
+
         # Exponential decay learning rate
-        self.learning_rate = tf.train.exponential_decay(lr, self.global_step, 2000000, 
-                0.95, staircase = True)
+        self.learning_rate = tf.train.exponential_decay(lr, self.global_step, self.lr_steps, 
+                0.9, staircase = False)
 
         self.loss = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.cost, 
                                             global_step = self.global_step)
@@ -104,6 +105,10 @@ class ADINetwork(object):
     def evaluate(self, state):
         value, policy = self.sess.run([self.v_out, self.policy], feed_dict = {self.x: state})
         return value, policy
+
+    def update_lr_steps(self, steps):
+        self.sess.run(self.lr_steps.assign(steps))
+        print(self.sess.run(self.lr_steps))
     
     def save(self):
         self.saver.save(self.sess, self.checkpoint_dir, global_step = self.global_step)
@@ -118,8 +123,6 @@ class ADINetwork(object):
                                              self.y_policy: actions,
                                              self.weight: weight})
 
-        self.sess.run(tf.assign_add(self.global_step, 1))
-        print(self.sess.run(self.learning_rate))
         '''        
         if self.local_step % 1000 == 0 and self.local_step != 0:
 
@@ -142,5 +145,5 @@ class ADINetwork(object):
         '''
 
         self.local_step += 1
-        self.global_step += 1
+        #self.global_step += 1
         return cost
