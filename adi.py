@@ -9,6 +9,7 @@ import copy
 import pdb
 import sys
 import time
+import math
 
 def move(cube, depth):
     if depth == 0:
@@ -114,7 +115,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
 
                 cube.move(action)
 
-                weight_vector[(l*K) + k] = 1 / w
+                weight_vector[(l*K) + k] = 1 / np.sqrt(w)
                 
                 w += 1
 
@@ -168,7 +169,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
             K += 1
             print("-- Increasing K to {}".format(K))
             if same_batch:
-                L = orig_L // K
+                L = math.ceil(orig_L / K)
                 if L == 0:
                     L = 1
                 print("L is now {}".format(L))
