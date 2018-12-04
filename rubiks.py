@@ -197,6 +197,7 @@ class Cube3x3(Cube):
 
     def __init__(self, scramble_distance=0, cube = None, history = None):
         Cube.__init__(self, scramble_distance, cube, history)
+        self.gods_number = 20
 
     #Perform rotation of given face 90 degrees clockwise
     #Note a counterclockwise move is 3 clockwise rotations 
@@ -337,6 +338,7 @@ class Cube2x2(Cube):
 
     def __init__(self, scramble_distance=0, cube = None, history = None):
         Cube.__init__(self, scramble_distance, cube, history)
+        self.gods_number = 14
 
     #Perform rotation of given face 90 degrees clockwise
     #Note a counterclockwise move is 3 clockwise rotations 
