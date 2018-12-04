@@ -19,7 +19,7 @@ def move(cube, depth):
         true_values = np.zeros((12, 1))
         
 
-def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5, 
+def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, gamma = 0.5, 
         allow_move_back = False, search_depth = 1, output_dir = 'output', 
         same_batch = False, use_cpu = False, dims = 3):
 
@@ -37,7 +37,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
     
     # Start with moves very close to the cube
     # after some time, increase
-    K = 1
+    K = K_start
     orig_L = copy.copy(L)
 
     # Set up the neural network
@@ -49,7 +49,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
 
     # Number of times to run each of the simulations at each
     # value of K. Scale linearly
-    steps = np.arange(1, max_K+1) * steps_per_iter
+    steps = np.arange(K_start, max_K+1) * steps_per_iter
 
     # Run a ton at the end if there are leftover steps
     add_steps = (M - np.sum(steps))
@@ -61,6 +61,9 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
     local_steps = 0
     step_idx = 0
     
+    if same_batch:
+        L = math.ceil(orig_L / K)
+
     print("Using batch size of {}".format(L))
     
     for m in range(1, M+1):
@@ -115,7 +118,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
 
                 cube.move(action)
 
-                weight_vector[(l*K) + k] = 1 / np.sqrt(w)
+                weight_vector[(l*K) + k] = 1 / w
                 
                 w += 1
 
@@ -169,7 +172,7 @@ def adi(M = 2000000, max_K = 30, L = 10, steps_per_iter = 2000, gamma = 0.5,
             K += 1
             print("-- Increasing K to {}".format(K))
             if same_batch:
-                L = math.ceil(orig_L / K)
+                L = orig_L // K
                 if L == 0:
                     L = 1
                 print("L is now {}".format(L))
@@ -181,6 +184,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Rubik's cude using autodidactic iteration")
     parser.add_argument("-M", type = int, default = 2000000, help = "Number of trials overall")
     parser.add_argument("-K", type = int, default = 30, help = "Maximum moves away it will move from solved state")
+    parser.add_argument("-K_start", type = int, default = 1, help = "Which K to start with")
     parser.add_argument("-L", type = int, default = 50, help = "Number of times to run 1:K before sending as batch to NN. K * L gives batch size unless --same_batch is specified as argument")
     parser.add_argument("-g", "--gamma", type = float, default = 0.5, help = "Discount factor")
     parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make at each K. Linear function, so number moves at each k is K * steps_per_iter")
@@ -192,7 +196,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    adi(M = args.M, max_K = args.K, L = args.L, steps_per_iter = args.steps_per_iter,
+    adi(M = args.M, max_K = args.K, K_start = args.K_start, L = args.L, steps_per_iter = args.steps_per_iter,
         gamma = args.gamma, allow_move_back = args.allow_move_back,
         output_dir = args.output_dir, same_batch = args.same_batch,
         use_cpu = args.use_cpu, dims = args.dims)
