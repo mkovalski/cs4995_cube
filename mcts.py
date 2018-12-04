@@ -117,8 +117,9 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--dims", default = 2, choices = [2, 3], type = int, help = "Cube dimensions")
     parser.add_argument("-b", "--batch", default = 1, type = int)
     parser.add_argument("--verbose", action = "store_true")
-    parser.add_argument("-m", "--moves", type = int, default = 5)
+    parser.add_argument("-m", "--moves", type = int, default = [5], nargs = '+')
     parser.add_argument("-t", "--time", type = int, help = "Time limit", default = 60)
+    parser.add_argument("-p", "--plot", action = "store_true")
 
     args = parser.parse_args()
     
@@ -135,33 +136,38 @@ if __name__ == '__main__':
     num_solved = 0
     total_cubes = args.batch
 
-    nodes_explored = []
-    solve_length = []
-
-    for b in range(args.batch):
-        cube.reset()
-        win_moves = []
-        for i in range(args.moves):
-            action = np.random.choice(np.arange(0, actions.shape[0]))
-            cube.move(actions[action, :])
-            flip = 1 if action % 2 == 0 else -1
-            win_moves.append(action + flip)
-        
-        if args.verbose:
-            for it in reversed(win_moves):
-                print(" - Take action {}".format(it))
-
-            print("Starting search")
-
-        solved, num_moves, move_steps = mcts.search(cube, time_limit = args.time)
-        if solved:
-            num_solved += 1
-            nodes_explored.append(num_moves)
-            solve_length.append(move_steps)
     
+    for moves in args.moves:
+        print("Running cubes {} away for {} iterations".format(moves, args.batch))
+        
+        nodes_explored = []
+        solve_length = []
+        num_solved = 0
 
-    print("Statistics: solving {} moves away".format(args.moves))
-    print(" - Percent solved: {}".format(num_solved / float(total_cubes)))
-    print(" - Average num nodes explored: {}".format(np.mean(nodes_explored)))
-    print(" - Average number of steps to solve length: {}".format(np.mean(solve_length)))
+        for b in range(args.batch):
+            cube.reset()
+            win_moves = []
+            for i in range(moves):
+                action = np.random.choice(np.arange(0, actions.shape[0]))
+                cube.move(actions[action, :])
+                flip = 1 if action % 2 == 0 else -1
+                win_moves.append(action + flip)
+            
+            if args.verbose:
+                for it in reversed(win_moves):
+                    print(" - Take action {}".format(it))
+
+                print("Starting search")
+
+            solved, num_moves, move_steps = mcts.search(cube, time_limit = args.time)
+            if solved:
+                num_solved += 1
+                nodes_explored.append(num_moves)
+                solve_length.append(move_steps)
+        
+        print("Statistics: solving {} moves away".format(moves))
+        print(" - Percent solved: {}".format(num_solved / float(total_cubes)))
+        print(" - Average num nodes explored: {}".format(np.mean(nodes_explored)))
+        print(" - Average number of steps to solve length: {}".format(np.mean(solve_length)))
+        print()
 
