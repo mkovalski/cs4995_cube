@@ -172,7 +172,7 @@ def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, ga
             K += 1
             print("-- Increasing K to {}".format(K))
             if same_batch:
-                L = orig_L // K
+                L = math.ceil(orig_L / K)
                 if L == 0:
                     L = 1
                 print("L is now {}".format(L))
