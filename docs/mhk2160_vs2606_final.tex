@@ -139,11 +139,11 @@ We also scaled the batch size as the training continued. We initially started wi
 
 After the neural network is trained, we use Monte Carlo tree search to look through the space to determine which paths to take to find a solved state, using the neural network $f_\theta$ as a guide as to what paths to take. 
 
-Initially, we start with a random state for the cube $S$. Each node of the search tree has some values associated with it, such as the number of times it has chosen action $a$ from state $s$, the maximum value of action $a$ from state $s$, the virtual loss function for each action $a$, and the prior probability of action $a$ from state $s$.
+Initially, we start with a random state for the cube $S$ shuffled $n$ moves away from the solved state. Each node of the search tree represents a single cube state. Each node has some values associated with it, such as the number of times it has chosen action $a$ from state $s$ ($N_{s}(a)$), the maximum value of action $a$ from state $s$ ($W_{s}(a)$), the virtual loss function for each action $a$ ($L_{s}(a)$), and the prior probability of action $a$ from state $s$ ($P_{s}(a)$).
 
-The tree is traversed in the following fashion: An action $a$ is selected at each node by taking the maximum value of $A=argmax_a U_{s_{t}}(a) + Q_{s_{t}}(a) $, where the two values help to explore the tree using factors such as how many times it has been visited, the maximum value of the tree, as well as hyper parameters such as $c$, which is an exploration hyperparameter, and $v$, which discourages the search from taking the same path.
+The tree is traversed in the following fashion: An action $a$ is selected at each node by taking the maximum value of a specific policy A, where $A=argmax_a (U_{s_{t}}(a) + Q_{s_{t}}(a)) $. The first exploration parameter used in the policy is $U_{s_{t}} = cP_{s_{t}}(a) \sqrt{\sum_{a'}N_{s_{t}}(a')}/(1 + N_{s_{t}}(a))$. Essentially what this does is take the probability of each action and discount them by the number of times that node has been visited. This encourages exploration of the space to make sure we don't take the same move over and over. Additionally, $Q_{s_{t}}= W_{s_{t}}(a) - L_{s_{t}})(a)$, where $W_{s_{t}}$ is the maximum value of each action $a$ from a node, and $L_{s_{t}}$ is an additional hyperparameter also helps with exploration, discounting actions more and more each time we execute this action. Each time we reach a leaf, we update $L_{s_{t}}(A_t) += v$ to encourage exploration and not repeatedly taking the most recent chosen action. We have control over the hyperparameters $c$ and $v$ so we can balance which equation is weighted more heavily during tree search time.
 
-When a leaf node is reached, all children are expanded and initialized, so that $N_i = 0$, $W_i = 0$, $L_i = 0$, and $P_i = p_i(f_\theta (s_i))$. The values are  then backed up all the way to the root node, where $W_s(A_t) = max(W_s(A_t), v_i(A_t)$, $N_i += 1$, $L_s -= v$.
+When a leaf node is reached, all children are expanded and initialized, so that $N_i = 0$, $W_i = 0$, $L_i = 0$, and $P_i = p_i(f_\theta (s_i))$. The values are then backed up all the way to the root node, where $W_s(A_t) = max(W_s(A_t), v_{s_{t}})$, $N_{s_{t}}(A_t)+= 1$, $L_{s_{t}}(A_t) -= v$.
 
 The simulation is completed once a solved state is reached, or a maximum amount of time is reached.
 
@@ -177,9 +177,9 @@ We can easily see that our network outperforms the brute force alternative.  A s
 
 \subsection{Innovation}
 
-In the original paper there was mention of parallelism used during the tree search.  Although the specifics on what strategy was used was not detailed.  In regards to MCTS in general there are three main strategies for parallelism. 1. Root parallelism. Here the root of the tree, in our case an unsolved rubiks cube, is replicated across many workers and each tries to solve it on their own, taking different routes and expanding the tree differently.  2. Tree parallelism.  Where a single tree is operated on by may workers and updates are made to the global state. 3. Leaf parallelism.  Where the tree is traversed and expanded by a single worker but the simulations at the leaves are carried out by multiple workers.  The results are then sent back to the root worker to change the state of the tree. [10]
+In the original paper there was mention of parallelism used during the tree search.  Although the specifics on what strategy was used was not detailed.  In regards to MCTS in general there are three main strategies for parallelism. 1. Root parallelism. Here the root of the tree, in our case an unsolved rubiks cube, is replicated across many workers and each tries to solve it on their own, taking different routes and expanding the tree differently.  2. Tree parallelism.  Where a single tree is operated on by may workers and updates are made to the global state.  3.  Leaf parallelism.  Where the tree is traversed and expanded by a single worker but the simulations at the leaves are carried out by multiple workers.  The results are then sent back to the root worker to change the state of the tree.   [add reference here]
 
-Both root and tree parallelism rely on a certain amount of randomness to ensure that workers are traversing the tree differently to get the advantage of having multiple workers.  Since our method for traversing and expanding the tree are deterministic given a trained network and given state, it was not apparent that either of those methods would provide any benefit.  We did brief studies injecting randomness whilst traversing the tree in addition to being guided by the policy network.  This only seemed to increased the number of nodes expanded in the tree without improving the number of cubes solved or the solution length. 
+Both root and tree parallelism rely on a certain amount of randomness to ensure that workers are traversing the tree differently to get the advantage of having multiple workers.  Since our method for traversing and expanding the tree are deterministic given a trained network and given state, it was not apparent that either of those methods would provide any benefit.  We did brief studies injecting traversing the tree randomly in addition to being guided by the policy network and that only seemed to increased the number of nodes expanded in the tree without improving the number of cubes solved or the solution length. 
 
 Now the MCTS algorithm in the original paper did not make specific mention of simulations being performed at the leaf nodes.  From our inspection the tree was traversed strictly as the policy network dictated so it was unclear which, if any, of these strategies were used.  However, it would seem that leaf parallelism would be the easiest to implement and see if the key metrics could be improved. 
 
@@ -215,28 +215,28 @@ The only worthwhile uptick is the percentage of cubes able to solve at a given s
 
 Initially, we started off with the easier problem of solving a 2x2 rubik's cube. This decision was made as to help us understand how we could go about solving the problem originally without a code base to start with. Additionally, we had computational resource constraints, which we will talk about how these come into play later on.
 
-We started by training a neural network to learn the 2x2 cube value and policy functions. We trained the network with moves up to 20 quarter turns away from the solved state. God's number for the 2x2 cube is 14 in the quarter turn metric, and because we allow the rubik's cube to move to any other state from any state, we felt 20 would sufficiently cover the search space. We trained the network for 2 million iterations. We trained with a batch size starting at 5 and let it grow over time with each move away from the orignal solved state (when we let the rubik's cube go to 2 moves, batch size increased to 10, to 3 it increased to 15, etc.). This decision allowed us to iterate pretty quickly.  We started learning the cube at only 1 step away from the solved state for a fixed number of iterations (we chose 4000). After this, we allowed the cube to move 2 turns past the solved state. We then trained for 8000 iterations, at 3 turns 12000 iterations, so forth. We ran for up to a total of 1 million iterations. 
+We started by training a neural network to learn the 2x2 cube value and policy functions. We trained the network with moves up to 20 quarter turns away from the solved state. God's number for the 2x2 cube is 14 in the quarter turn metric, and because we allow the rubik's cube to move to any other state from any state, we felt 20 would sufficiently cover the search space. We trained the network for 2 million iterations. We trained with a batch size starting at 5 and let it grow over time with each move away from the orignal solved state (when we let the rubik's cube go to 2 moves, batch size increased to 10, to 3 it increased to 15, etc.). This decision allowed us to iterate pretty quickly.  We started learning the cube at only 1 step away from the solved state for a fixed number of iterations (we chose 4000). After this, we allowed the cube to move 2 turns past the solved state. We then trained for 8000 iterations, at 3 turns 12000 iterations, so forth. We ran for up to a total of 2 million iterations. After training, we ran MCTS on the solved cubes of varying distances from the origin up to 14 moves away and observed on average what percentage of cubes we were able to solve, how many nodes it needed to explore, and the average number of moves to get to a final solution. We compared this at first with a brute force solution to make sure our neural network was learning something interesting on how to solve. 
 
-After training, we ran MCTS on the solved cubes of varying distances from the origin up to 14 moves away and observed on average what percentage of cubes we were able to solve, how many nodes it needed to explore, and the average number of moves to get to a final solution. We compared this at first with a brute force solution to make sure our neural network was learning something interesting on how to solve. 
-In the figures above it is apparent that the network is superior to random brute force searching.  In all areas the network outperformed the baseline.  Taking specific note to cubes shuffled 5 moves from the origin, the brute force had to evaluate over 50,000 cubes where are algorithm only expanded 9.5 on average.   In the brute force algorithm there is no specific minding for efficient routes.  The average number of steps to return back to the origin was 9.2, almost twice as many steps away from the origin.  Our algorithm stayed within 5 moves on average. 
+
 
 \begin{figure}
   \includegraphics[width=\linewidth]{loss.png}
-  \caption{Neural network.}
+  \caption{Loss training for 2 million iterations.}
   \label{fig:net}
 \end{figure}
 
-\subsection{Final Comments}
-e scrambled the cube 14 randomly from the start position and attempted to solve the cubes each within 5 minutes. Below are the statistics gathered from 20 runs:
+\
+
+We scrambled the cube 14 randomly from the start position and attempted to solve the cubes each within 5 minutes. Below are the statistics gathered from 20 runs:
 
 \begin{center}
-	\begin{tabular}{ |c|c| } 
-		 \hline
-		  Percent solved & 50\%\\ 
-		   Average number cubes expanded & 376.7  \\ 
-		    Average number of moves to solution & 8.8 \\ 
-		     \hline
-	\end{tabular}
+\begin{tabular}{ |c|c| } 
+ \hline
+ Percent solved & 50\%\\ 
+ Average number cubes expanded & 376.7  \\ 
+ Average number of moves to solution & 8.8 \\ 
+ \hline
+\end{tabular}
 \end{center}
 
 Some tweaks to the network training and MCTS algorithm should be updated to get better performance than this. As noted in the original paper, on average, when scrambled 1000 times from the original solved cube, it took on average 10 minutes to solve using a parallel solver where our solution uses a serial solve. If we let the algorithm run a bit longer, we may be able to solve these cubes more efficiently. 
@@ -244,17 +244,19 @@ Some tweaks to the network training and MCTS algorithm should be updated to get 
 We then tried shuffling 5 cubes 1000 times with a time constraint of 30 minutes to prove that we can solve difficult cubes. We did this for 5 cubes.
 
 \begin{center}
-	\begin{tabular}{ |c|c| } 
-		 \hline
-		  Percent solved & 80\%\\ 
-		   Average time per solve & 6.4 minutes \\
-		    Average number cubes expanded & 573.4  \\ 
-		     Average number of moves to solution & 10.4 \\ 
-		      \hline
-	\end{tabular}
+\begin{tabular}{ |c|c| } 
+ \hline
+ Percent solved & 80\%\\ 
+ Average time per solve & 6.4 minutes \\
+ Average number cubes expanded & 573.4  \\ 
+ Average number of moves to solution & 10.4 \\ 
+ \hline
+\end{tabular}
 \end{center}
 
 The cube was able to solve 4 of 5 shuffled shuffled cubes. However, the average number of cubes expanded and time to solve was not as great as we'd hoped for. Again, a more efficient MCTS may be useful to speed up this search.
+
+\subsection{Final Comments}
 
 Our initial goals were to solve the 3x3 rubik's cube as done in the paper. However, as training progressed, we started to understand why the computational resources listed were used (32 core machine with 3 GPUs). One thing that we had noticed is that when training, the bottleneck became generating the cubes on the CPU. This performance lead to starving the GPU of training data and leading it idle for much of training time. Our GPU machine used on google cloud had only 2 cores, so we could not push the data generation as far as we would have liked to. More cpus would tremendously speed up our data generation process.
 
@@ -311,10 +313,6 @@ Author = {Alexander Sergeev and Mike Del Balso},
 Title = {Horovod: fast and easy distributed deep learning in TensorFlow},
 Year = {2018},
 Eprint = {arXiv:1802.05799}
-
-\bibitem{}
-\newblock Guillaume M.J-B. Chaslot, Mark H.M. Winands, and H. Jaap van den Herik
-\newblock Parallel Monte-Carlo Tree Search
 
 \end{thebibliography}
 
