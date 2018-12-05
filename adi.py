@@ -19,7 +19,7 @@ def move(cube, depth):
         true_values = np.zeros((12, 1))
         
 
-def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, gamma = 0.5, 
+def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, gamma = 0.95, 
         allow_move_back = False, search_depth = 1, output_dir = 'output', 
         same_batch = False, use_cpu = False, dims = 3):
 
@@ -172,7 +172,7 @@ def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, ga
             K += 1
             print("-- Increasing K to {}".format(K))
             if same_batch:
-                L = orig_L // K
+                L = math.ceil(orig_L / K)
                 if L == 0:
                     L = 1
                 print("L is now {}".format(L))
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument("-K", type = int, default = 30, help = "Maximum moves away it will move from solved state")
     parser.add_argument("-K_start", type = int, default = 1, help = "Which K to start with")
     parser.add_argument("-L", type = int, default = 50, help = "Number of times to run 1:K before sending as batch to NN. K * L gives batch size unless --same_batch is specified as argument")
-    parser.add_argument("-g", "--gamma", type = float, default = 0.5, help = "Discount factor")
+    parser.add_argument("-g", "--gamma", type = float, default = 0.95, help = "Discount factor")
     parser.add_argument("--steps_per_iter", type = int, default = 500, help = "How many moves to make at each K. Linear function, so number moves at each k is K * steps_per_iter")
     parser.add_argument("--same_batch", action = 'store_true', help="Rescale batch as K grows")
     parser.add_argument('--allow_move_back', action='store_true', help = "Allow the rubik's cube to move to it's previous state during the search")
