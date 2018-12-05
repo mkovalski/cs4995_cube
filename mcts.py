@@ -237,6 +237,8 @@ if __name__ == '__main__':
     
     if parallel and not args.run_mcts_simulation:
         raise Exception("Cannot utilize parallelization without running MCTS simulations.  Add arg: --run_mcts_simulation")
+    if parallel and not args.dims == 2:
+        raise Exception("Parallel only supported for Cube2x2")
 
     mcts = MCTS(args.checkpoint, cube, args.exploration, args.v_loss, run_simulation = args.run_mcts_simulation, simulation_time = args.simulation_time, parallel = parallel, comm = comm)
     
