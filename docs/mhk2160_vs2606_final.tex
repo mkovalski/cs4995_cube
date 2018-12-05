@@ -139,17 +139,74 @@ We also scaled the batch size as the training continued. We initially started wi
 
 After the neural network is trained, we use Monte Carlo tree search to look through the space to determine which paths to take to find a solved state, using the neural network $f_\theta$ as a guide as to what paths to take. 
 
-Initially, we start with a random state for the cube $S$. Each node of the search tree has some values assoicated with it, such as the number of times it has chosen action $a$ from state $s$, the maximum value of action $a$ from state $s$, the virtual loss function for each action $a$, and the prior probability of action $a$ from state $s$.
+Initially, we start with a random state for the cube $S$. Each node of the search tree has some values associated with it, such as the number of times it has chosen action $a$ from state $s$, the maximum value of action $a$ from state $s$, the virtual loss function for each action $a$, and the prior probability of action $a$ from state $s$.
 
 The tree is traversed in the following fashion: An action $a$ is selected at each node by taking the maximum value of $A=argmax_a U_{s_{t}}(a) + Q_{s_{t}}(a) $, where the two values help to explore the tree using factors such as how many times it has been visited, the maximum value of the tree, as well as hyper parameters such as $c$, which is an exploration hyperparameter, and $v$, which discourages the search from taking the same path.
 
-When a leaf node is reached, all children are expanded and initialized, so that $N_i = 0$, $W_i = 0$, $L_i = 0$, and $P_i = p_i(f_\theta (s_i))$. The values is  then backed up all the way to the root node, where $W_s(A_t) = max(W_s(A_t), v_i(A_t)$, $N_i += 1$, $L_s -= v$.
+When a leaf node is reached, all children are expanded and initialized, so that $N_i = 0$, $W_i = 0$, $L_i = 0$, and $P_i = p_i(f_\theta (s_i))$. The values are  then backed up all the way to the root node, where $W_s(A_t) = max(W_s(A_t), v_i(A_t)$, $N_i += 1$, $L_s -= v$.
 
-The simulation is completed once a solved state is reached, or a maximum number of iterations are taken.
+The simulation is completed once a solved state is reached, or a maximum amount of time is reached.
 
 \subsection{Methods}
 
+Our main metrics to test the MCTS algorithm for a given number of shuffles away from the origin were: whether a solved state was reached, number of nodes expanded during search, and number of steps used in solution.  The upper bound on time to solve was not a focus of this optimization and was increased as needed to gather meaningful values for the primary metrics.  
+
+These metrics most effectively show that the neural network and the search algorithm were making smart moves rather than just brute force searching the entire state space.  We could only run a limited number of shuffles away from the origin to compare between our network and brute force due to the memory usage of the brute force algorithm.  
+
+The brute force algorithm expands nodes randomly and traverses the tree based on the UCB score that takes into account wins and visits of a node.  At a leaf node, simulations are run to randomly dig deeper into the tree to see if it can hit a win.  The outcome of the simulation is propagated back up the tree. 
+
+We can easily see that our network outperforms the brute force alternative.  A significant thing to note is that number of steps of steps to a solve stays within the shuffle distance for our network.  Meaning that our method is finding an optimal route and not making unnecessary steps. 
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{brute_solved.png}
+  \caption{Percentage of 20 cubes solved}
+  \label{fig:net}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{brute_nodes.png}
+  \caption{Average nodes expanded for solved cubes}
+  \label{fig:net}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{brute_steps.png}
+  \caption{Average steps in solution for solved cubes}
+  \label{fig:net}
+\end{figure}
+
 \subsection{Innovation}
+
+In the original paper there was mention of parallelism used during the tree search.  Although the specifics on what strategy was used was not detailed.  In regards to MCTS in general there are three main strategies for parallelism. 1. Root parallelism. Here the root of the tree, in our case an unsolved rubiks cube, is replicated across many workers and each tries to solve it on their own, taking different routes and expanding the tree differently.  2. Tree parallelism.  Where a single tree is operated on by may workers and updates are made to the global state.  3.  Leaf parallelism.  Where the tree is traversed and expanded by a single worker but the simulations at the leaves are carried out by multiple workers.  The results are then sent back to the root worker to change the state of the tree.   [add reference here]
+
+Both root and tree parallelism rely on a certain amount of randomness to ensure that workers are traversing the tree differently to get the advantage of having multiple workers.  Since our method for traversing and expanding the tree are deterministic given a trained network and given state, it was not apparent that either of those methods would provide any benefit.  We did brief studies injecting traversing the tree randomly in addition to being guided by the policy network and that only seemed to increased the number of nodes expanded in the tree without improving the number of cubes solved or the solution length. 
+
+Now the MCTS algorithm in the original paper did not make specific mention of simulations being performed at the leaf nodes.  From our inspection the tree was traversed strictly as the policy network dictated so it was unclear which, if any, of these strategies were used.  However, it would seem that leaf parallelism would be the easiest to implement and see if the key metrics could be improved. 
+
+Here we leverage a strategy that mirrors the methods used in brute force implementation of MCTS.  When a leaf node was reached, if it was the solved state then algorithm would complete.  However, if the leaf was still unsolved, before propagating the necessary values used for $A=argmax_a U_{s_{t}}(a) + Q_{s_{t}}(a) $, a simulation would be run.  The simulation would randomly explore into the tree, no more than the "gods number" deep, as many times as possible in hopes of lucking upon a win.  If it did happen upon a win then that information was also propagated up the tree.  Then on the next iteration of the search for a leaf node it would not only follow the direction of the policy network, but it would take into account the number of simulation wins encountered along that node and supersede the direction towards the node with the highest wins to visits ratio.  Here we used leaf parallelism to run as many simulations as possible.  The root process would broadcast the leaf cube state matrix to all other workers.  The worker processes would randomly make moves from this state for a certain period of time.  The processes would then do an AllReduce of whether or not they found a solved state.  The root process would augment the tree with that information.  Note most often the simulations would not randomly fall on a win and thus the tree was traversed as normal following the policy network. 
+
+We ran 3 case studies to see if adding the simulations and superseding policy based on win ratio improved results.  We ran 20 cubes each for 2,3,4,5,6,7,8,9,10 shuffles away from the origin.  Then ran the tree search without the simulations, with a single process to run simulations, and multiple processes working simulations. 
+
+The only worthwhile uptick is the percentage of cubes able to solve at a given shuffle distance.  More research would need to be spent investigating how parallelism could be leveraged and improve all three metric areas.  
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{para_solved.png}
+  \caption{Percentage of 20 cubes solved}
+  \label{fig:net}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{para_nodes.png}
+  \caption{Average nodes expanded for solved cubes}
+  \label{fig:net}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{para_steps.png}
+  \caption{Average steps in solution for solved cubes}
+  \label{fig:net}
+\end{figure}
+
 
 %-------------------------------------------------------------------------
 
