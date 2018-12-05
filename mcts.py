@@ -124,9 +124,6 @@ class Node(object):
             action = self.policy()
 
             if self.run_simulation:
-                if random.random() > 0.5:
-                    action = np.random.choice(np.arange(0, 12))
-
                 best_ratio =0
                 for a, child in enumerate(self.children):
                     ratio = child.n_wins / child.n_plays if child.n_plays > 0 else 0
