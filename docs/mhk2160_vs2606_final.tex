@@ -227,6 +227,34 @@ In the figures above it is apparent that the network is superior to random brute
 \end{figure}
 
 \subsection{Final Comments}
+e scrambled the cube 14 randomly from the start position and attempted to solve the cubes each within 5 minutes. Below are the statistics gathered from 20 runs:
+
+\begin{center}
+	\begin{tabular}{ |c|c| } 
+		 \hline
+		  Percent solved & 50\%\\ 
+		   Average number cubes expanded & 376.7  \\ 
+		    Average number of moves to solution & 8.8 \\ 
+		     \hline
+	\end{tabular}
+\end{center}
+
+Some tweaks to the network training and MCTS algorithm should be updated to get better performance than this. As noted in the original paper, on average, when scrambled 1000 times from the original solved cube, it took on average 10 minutes to solve using a parallel solver where our solution uses a serial solve. If we let the algorithm run a bit longer, we may be able to solve these cubes more efficiently. 
+
+We then tried shuffling 5 cubes 1000 times with a time constraint of 30 minutes to prove that we can solve difficult cubes. We did this for 5 cubes.
+
+\begin{center}
+	\begin{tabular}{ |c|c| } 
+		 \hline
+		  Percent solved & 80\%\\ 
+		   Average time per solve & 6.4 minutes \\
+		    Average number cubes expanded & 573.4  \\ 
+		     Average number of moves to solution & 10.4 \\ 
+		      \hline
+	\end{tabular}
+\end{center}
+
+The cube was able to solve 4 of 5 shuffled shuffled cubes. However, the average number of cubes expanded and time to solve was not as great as we'd hoped for. Again, a more efficient MCTS may be useful to speed up this search.
 
 Our initial goals were to solve the 3x3 rubik's cube as done in the paper. However, as training progressed, we started to understand why the computational resources listed were used (32 core machine with 3 GPUs). One thing that we had noticed is that when training, the bottleneck became generating the cubes on the CPU. This performance lead to starving the GPU of training data and leading it idle for much of training time. Our GPU machine used on google cloud had only 2 cores, so we could not push the data generation as far as we would have liked to. More cpus would tremendously speed up our data generation process.
 
