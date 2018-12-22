@@ -42,7 +42,7 @@ def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, ga
 
     # Set up the neural network
     network = ADINetwork(output_dir, use_gpu = not use_cpu)
-    network.setup(cube_size = cube.cube.size)
+    network.setup(cube = cube.cube)
     
     # Moves allowed to make
     actions = np.eye(12).astype(np.float32)
@@ -71,11 +71,11 @@ def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, ga
 
         all_values = np.zeros((N, 1))
         all_policies = np.zeros((N, 12))
-        all_states = np.zeros((N, cube.cube.size))
+        all_states = np.zeros((N, cube.cube.shape[0], cube.cube.shape[1], 1))
         
         weight_vector = np.ones(N)
                 
-        cubes = np.zeros((N * 12, cube.cube.size))
+        cubes = np.zeros((N * 12, cube.cube.shape[0], cube.cube.shape[1], 1))
         true_values = np.zeros((N * 12, 1))
         
         for l in range(L):
@@ -128,10 +128,10 @@ def adi(M = 2000000, max_K = 30, K_start = 1,  L = 10, steps_per_iter = 2000, ga
                     idx = (l * K * 12) + (k*12) + mv
                     tmp_cube = copy.deepcopy(cube)
                     true_values[idx, :] = tmp_cube.move(actions[mv, :])
-                    cubes[idx, :] = tmp_cube.cube.reshape(1, -1)
+                    cubes[idx, :] = tmp_cube.cube
                     del tmp_cube
                 
-                all_states[(l*K) + k, :] = np.copy(cube.cube).flatten()
+                all_states[(l*K) + k, :] = np.copy(cube.cube)
         
         vals, _ = network.evaluate(cubes)
         vals *= gamma

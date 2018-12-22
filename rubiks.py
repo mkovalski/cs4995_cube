@@ -128,7 +128,7 @@ class Cube(ABC):
     #Solved state, each orientation is in default position
     @abstractmethod
     def solved_cube(self):
-        solved = np.zeros((20, 24), dtype = np.int32)
+        solved = np.zeros((20, 24, 1), dtype = np.int32)
         #return solved
         pass      
 
@@ -289,7 +289,7 @@ class Cube3x3(Cube):
 
     #Solved state, each orientation is in default position
     def solved_cube(self):
-        solved = np.zeros((20, 24), dtype = np.int32)
+        solved = np.zeros((20, 24, 1), dtype = np.int32)
 
         solved[self.cublets["WB"], self.edge_pos["WB"]] = 1  
         solved[self.cublets["WG"], self.edge_pos["WG"]] = 1
@@ -406,7 +406,7 @@ class Cube2x2(Cube):
 
     #Solved state, each orientation is in default position
     def solved_cube(self):
-        solved = np.zeros((8, 24), dtype = np.int32)
+        solved = np.zeros((8, 24, 1), dtype = np.int32)
         solved[self.cublets["WOB"], self.corner_pos["WOB"]] = 1 
         solved[self.cublets["WBR"], self.corner_pos["WBR"]] = 1 
         solved[self.cublets["WGO"], self.corner_pos["WGO"]] = 1 

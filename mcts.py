@@ -13,7 +13,7 @@ from  mpi4py import MPI
 import random
 import math
 
-np.random.seed(seed=1)
+#np.random.seed(seed=1)
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -169,15 +169,14 @@ class MCTS(object):
         self.c = exploration
         self.v = virt_loss
 
-    def search(self, cube, time_limit = 60):
+    def search(self, cube, time_limit = 60, move_limit = 1000):
         
         root_node = Node(None, cube, self.c, self.v, self.network)
         
         num_moves = 0
-        t1 = time.time()
        
         solved = False
-        while(time.time() - t1 < time_limit):
+        while(num_moves < move_limit):
             _, solved, move_steps, _= root_node.search(self.network, move_num = 0)
             if solved:
                 break

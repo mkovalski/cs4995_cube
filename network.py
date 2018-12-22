@@ -7,7 +7,7 @@ import pdb
 
 class ADINetwork(object):
     def __init__(self, output_dir, use_gpu = True):
-        self.activation = tf.nn.elu
+        self.activation = tf.nn.relu
         self.sess = None
         self.save_dir = output_dir
         self.checkpoint_dir = os.path.join(self.save_dir, 'checkpoints')
@@ -23,6 +23,28 @@ class ADINetwork(object):
             os.makedirs(self.checkpoint_dir)
     
         self.local_step = 0
+    
+    def conv_inference(self, X):
+        ''' Convolution version of the neural network. 
+            - 3d images have shape 20 x 24
+        '''
+        
+        c0 = tf.layers.conv2d(X, filters = 3, kernel_size = 4, padding = 'same',
+            activation = self.activation)
+        p0 = tf.layers.max_pooling2d(c0, (2, 2), 1)
+        c1 = tf.layers.conv2d(p0, filters = 3, kernel_size = 4, padding = 'same',
+            activation = self.activation)
+        p1 = tf.layers.max_pooling2d(c1, (2, 2), 1)
+        
+        fc1 = tf.contrib.layers.flatten(p1)        
+        
+        pol_1 = tf.layers.dense(fc1, 512, activation = self.activation)
+        p_out = tf.layers.dense(pol_1, 12, activation = None)
+
+        v1 = tf.layers.dense(fc1, 512, activation = self.activation)
+        v_out = tf.layers.dense(v1, 1, activation = None)
+
+        return (v_out, p_out)
 
     def inference(self, X):
         
@@ -41,22 +63,22 @@ class ADINetwork(object):
 
         return (v_out, p_out)
     
-    def setup(self, cube_size):
+    def setup(self, cube):
         '''
         To use weighted values, provide a fixed batch size since the 
         weight vector will also be fixed
         
         '''
 
-        lr = 1e-6
+        lr = 1e-4
 
-        self.x = tf.placeholder(shape = (None, cube_size), dtype = tf.float32)
+        self.x = tf.placeholder(shape = (None, cube.shape[0], cube.shape[1], 1), dtype = tf.float32)
         self.y_value = tf.placeholder(shape = (None, 1), dtype = tf.float32)
         self.y_policy = tf.placeholder(shape = (None, 12), dtype = tf.float32)
         
         self.weight = tf.placeholder(shape = (None,), dtype = tf.float32)
 
-        self.v_out, self.p_out = self.inference(self.x)
+        self.v_out, self.p_out = self.conv_inference(self.x)
         
         self.policy = tf.nn.softmax(self.p_out)
 
